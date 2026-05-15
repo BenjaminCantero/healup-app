@@ -17,12 +17,16 @@ class AddInjuryScreen extends ConsumerStatefulWidget {
 class _AddInjuryScreenState extends ConsumerState<AddInjuryScreen> {
   double localPainLevel = 5.0;
 
-  void _saveInjury() {
-    ref.read(injuryProvider.notifier).updatePainLevel(localPainLevel);
-    
+  void _saveInjury() async {
+    await ref.read(injuriesProvider.notifier).createInjury({
+      'title': 'Nueva Lesión',
+      'painLevel': localPainLevel.toInt(),
+      'severity': 'moderate',
+    });
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('¡Dolor registrado correctamente!', style: TextStyle(fontWeight: FontWeight.w600)),
+        content: const Text('¡Lesión guardada!', style: TextStyle(fontWeight: FontWeight.w600)),
         backgroundColor: AppTheme.primaryColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

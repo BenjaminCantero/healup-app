@@ -16,6 +16,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
   bool _obscurePassword = true;
   bool _isLoading = false;
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
 
@@ -33,15 +35,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   @override
   void dispose() {
     _animController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _login() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor completa todos los campos.')),
+      );
+      return;
+    }
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 1200));
+    await ref.read(authProvider.notifier).login(email, password);
     if (!mounted) return;
-    ref.read(isLoggedInProvider.notifier).login();
-    context.go('/home');
+    setState(() => _isLoading = false);
+    final authState = ref.read(authProvider);
+    authState.when(
+      data: (s) {
+        if (s.isAuthenticated) context.go('/home');
+      },
+      error: (e, _) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      },
+      loading: () {},
+    );
   }
 
   @override
@@ -174,6 +200,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             hint: 'tu@email.com',
             icon: LucideIcons.mail,
             keyboardType: TextInputType.emailAddress,
+            controller: _emailController,
           ),
           const SizedBox(height: 20),
           // Password field
@@ -291,6 +318,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     required String hint,
     required IconData icon,
     TextInputType? keyboardType,
+    TextEditingController? controller,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -305,6 +333,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ],
       ),
       child: TextField(
+        controller: controller,
         keyboardType: keyboardType,
         style: const TextStyle(
           fontSize: 16,

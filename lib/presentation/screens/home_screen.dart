@@ -9,6 +9,8 @@ import '../widgets/custom_card.dart';
 import '../widgets/bouncing_wrapper.dart';
 import '../providers/routine_provider.dart';
 import '../providers/injury_provider.dart';
+import '../providers/gamification_provider.dart';
+import '../providers/auth_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -16,7 +18,9 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final progressVal = ref.watch(routineProgressProvider);
-    final injuryState = ref.watch(injuryProvider);
+    final dashStats = ref.watch(dashboardStatsProvider);
+    final streakDays = dashStats.value?.streakDays ?? 0;
+    final userName = ref.watch(authProvider).value?.user?.fullName.split(' ').first ?? 'Amigo';
     final coachTip = MockData.coachTips[0];
 
     return Scaffold(
@@ -29,11 +33,11 @@ class HomeScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildModernHeader(context),
+              _buildModernHeader(context, userName),
               const SizedBox(height: 24),
 
               // Streak + Quick actions row
-              _buildQuickStatsRow(context, injuryState.streakDays),
+              _buildQuickStatsRow(context, streakDays),
               const SizedBox(height: 24),
 
               // Hero progress card
@@ -137,7 +141,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildModernHeader(BuildContext context) {
+  Widget _buildModernHeader(BuildContext context, String userName) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -154,8 +158,8 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Alejandro 👋',
+            Text(
+              '$userName 👋',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,

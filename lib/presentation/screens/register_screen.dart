@@ -16,6 +16,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   int _selectedUserType = 0;
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
   final List<Map<String, String>> _userTypes = [
     {'emoji': '⚽', 'label': 'Atleta'},
@@ -24,11 +27,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   ];
 
   Future<void> _register() async {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor completa todos los campos.')),
+      );
+      return;
+    }
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 1400));
+    await ref.read(authProvider.notifier).register(name, email, password);
     if (!mounted) return;
-    ref.read(isLoggedInProvider.notifier).login();
-    context.go('/home');
+    setState(() => _isLoading = false);
+    final authState = ref.read(authProvider);
+    authState.when(
+      data: (s) { if (s.isAuthenticated) context.go('/home'); },
+      error: (e, _) => ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red.shade700),
+      ),
+      loading: () {},
+    );
   }
 
   @override
@@ -148,7 +167,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             const SizedBox(height: 28),
             _buildLabel('Nombre completo'),
             const SizedBox(height: 8),
-            _buildInputField(hint: 'Alejandro García', icon: LucideIcons.user),
+            _buildInputField(hint: 'Alejandro García', icon: LucideIcons.user, controller: _nameController),
             const SizedBox(height: 20),
             _buildLabel('Correo electrónico'),
             const SizedBox(height: 8),
@@ -156,6 +175,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               hint: 'tu@email.com',
               icon: LucideIcons.mail,
               keyboardType: TextInputType.emailAddress,
+              controller: _emailController,
             ),
             const SizedBox(height: 20),
             _buildLabel('Contraseña'),
@@ -254,6 +274,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     required String hint,
     required IconData icon,
     TextInputType? keyboardType,
+    TextEditingController? controller,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -268,6 +289,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         ],
       ),
       child: TextField(
+        controller: controller,
         keyboardType: keyboardType,
         style: const TextStyle(
           fontSize: 16,
