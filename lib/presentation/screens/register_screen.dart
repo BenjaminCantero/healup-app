@@ -180,7 +180,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             const SizedBox(height: 20),
             _buildLabel('Contraseña'),
             const SizedBox(height: 8),
-            _buildPasswordField(),
+            _buildPasswordField(controller: _passwordController),
             const SizedBox(height: 40),
             // Register button
             GestureDetector(
@@ -315,7 +315,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Widget _buildPasswordField() {
+  Widget _buildPasswordField({TextEditingController? controller}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -329,6 +329,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         ],
       ),
       child: TextField(
+        controller: controller,
         obscureText: _obscurePassword,
         style: const TextStyle(
           fontSize: 16,

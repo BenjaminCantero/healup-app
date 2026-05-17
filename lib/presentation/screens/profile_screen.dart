@@ -1,22 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/mock_data.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/bouncing_wrapper.dart';
+import '../providers/auth_provider.dart';
+import '../providers/gamification_provider.dart';
+import '../providers/injury_provider.dart';
+import '../../data/models/user_model.dart';
+import '../../data/models/gamification_model.dart';
+import '../../data/models/injury_model.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider).value?.user;
+    final dashStats = ref.watch(dashboardStatsProvider).value;
+    final injuries = ref.watch(injuriesProvider).value ?? [];
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       body: CustomScrollView(
         slivers: [
           // Hero header
           SliverToBoxAdapter(
-            child: _buildHeroHeader(context),
+            child: _buildHeroHeader(context, user),
           ),
           // Stats
           SliverToBoxAdapter(
@@ -26,7 +37,7 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildStatsRow(),
+                  _buildStatsRow(dashStats),
                   const SizedBox(height: 28),
                   const Text(
                     'Historial de Lesiones',
@@ -38,7 +49,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _buildInjuryHistory(context),
+                  _buildInjuryHistory(context, injuries),
                   const SizedBox(height: 28),
                   const Text(
                     'Configuración',
@@ -50,7 +61,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _buildSettingsSection(),
+                  _buildSettingsSection(context, ref),
                   const SizedBox(height: 120),
                 ],
               ),
@@ -61,7 +72,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeroHeader(BuildContext context) {
+  Widget _buildHeroHeader(BuildContext context, UserModel? user) {
     return Container(
       decoration: const BoxDecoration(
         gradient: AppTheme.primaryGradient,
@@ -140,9 +151,9 @@ class ProfileScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          const Text(
-            MockData.userName,
-            style: TextStyle(
+          Text(
+            user?.fullName ?? 'Usuario HealUp',
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 24,
               fontWeight: FontWeight.w800,
@@ -151,7 +162,7 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            MockData.userEmail,
+            user?.email ?? 'usuario@correo.com',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.7),
               fontSize: 14,
@@ -190,35 +201,39 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsRow() {
-    final stats = [
+  Widget _buildStatsRow(DashboardStatsModel? stats) {
+    final streak = stats?.streakDays ?? 0;
+    final active = stats?.totalDaysActive ?? 0;
+    final recovered = stats?.totalRecoveredInjuries ?? 0;
+
+    final statItems = [
       {
         'icon': '🔥',
-        'value': '${MockData.streakDays}',
+        'value': '$streak',
         'label': 'Racha',
         'unit': 'días',
       },
       {
         'icon': '📅',
-        'value': '${MockData.totalDaysActive}',
+        'value': '$active',
         'label': 'Días activo',
         'unit': 'total',
       },
       {
         'icon': '✅',
-        'value': '${MockData.totalRecoveredInjuries}',
+        'value': '$recovered',
         'label': 'Recuperadas',
         'unit': 'lesiones',
       },
     ];
 
     return Row(
-      children: stats
+      children: statItems
           .map(
             (s) => Expanded(
               child: Container(
                 margin: EdgeInsets.only(
-                    right: s != stats.last ? 10 : 0),
+                    right: s != statItems.last ? 10 : 0),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -270,11 +285,14 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInjuryHistory(BuildContext context) {
+  Widget _buildInjuryHistory(BuildContext context, List<InjuryModel> injuries) {
+    if (injuries.isEmpty) {
+      return const Center(child: Text('No hay lesiones registradas.'));
+    }
     return Column(
-      children: MockData.injuries.map((injury) {
-        final progress = injury['progress'] as double;
-        final isRecovered = injury['status'] == 'Recuperado';
+      children: injuries.map((injury) {
+        final progress = injury.phase == 'functional' ? 0.8 : (injury.phase == 'subacute' ? 0.5 : 0.2);
+        final isRecovered = injury.status == 'healed';
         return BouncingWrapper(
           onTap: () {},
           child: Container(
@@ -301,9 +319,9 @@ class ProfileScreen extends StatelessWidget {
                         : const Color(0xFFFFF3E0),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Center(
-                    child: Text(injury['icon'],
-                        style: const TextStyle(fontSize: 22)),
+                  child: const Center(
+                    child: Text('⚕️',
+                        style: TextStyle(fontSize: 22)),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -312,7 +330,7 @@ class ProfileScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        injury['name'],
+                        injury.title,
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -321,7 +339,7 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${injury['type']} • ${injury['days']} días',
+                        '${injury.severity.toUpperCase()}',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.textSecondary,
@@ -366,7 +384,7 @@ class ProfileScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        isRecovered ? '✓ Listo' : injury['status'],
+                        isRecovered ? '✓ Listo' : injury.phase.toUpperCase(),
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
@@ -397,7 +415,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSettingsSection() {
+  Widget _buildSettingsSection(BuildContext context, WidgetRef ref) {
     final groups = [
       {
         'title': 'Cuenta',
@@ -485,7 +503,12 @@ class ProfileScreen extends StatelessWidget {
                             ? null
                             : const Icon(LucideIcons.chevronRight,
                                 color: AppTheme.textSecondary, size: 18),
-                        onTap: () {},
+                        onTap: () {
+                          if (isDestructive) {
+                            ref.read(authProvider.notifier).logout();
+                            context.go('/login');
+                          }
+                        },
                       ),
                       if (i < items.length - 1)
                         Divider(

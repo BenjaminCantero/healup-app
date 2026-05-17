@@ -4,14 +4,14 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../widgets/checklist_item.dart';
 import '../widgets/gradient_button.dart';
-import '../providers/routine_provider.dart';
+import '../providers/gamification_provider.dart';
 
 class RoutineScreen extends ConsumerWidget {
   const RoutineScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final routines = ref.watch(routineProvider);
+    final tasksState = ref.watch(dailyTasksProvider);
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -19,45 +19,49 @@ class RoutineScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         title: const Text('Rutina de Hoy'),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(24.0),
-              itemCount: routines.length,
-              itemBuilder: (context, index) {
-                final routine = routines[index];
-                return ChecklistItem(
-                  title: routine.title,
-                  subtitle: routine.subtitle,
-                  isCompleted: routine.isCompleted,
-                  onTap: () {
-                    ref.read(routineProvider.notifier).toggleItem(routine.id);
-
-                    if (!routine.isCompleted) {
-                      ScaffoldMessenger.of(context).clearSnackBars();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Row(
-                            children: [
-                              const Icon(LucideIcons.checkCircle2, color: Colors.white),
-                              const SizedBox(width: 12),
-                              Text('${routine.title} completado!', style: const TextStyle(fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                          backgroundColor: AppTheme.primaryColor,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          margin: const EdgeInsets.only(bottom: 24, left: 24, right: 24),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    }
+      body: tasksState.when(
+        data: (tasks) {
+          if (tasks.isEmpty) {
+            return const Center(child: Text('No hay tareas para hoy.'));
+          }
+          return Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(24.0),
+                  itemCount: tasks.length,
+                  itemBuilder: (context, index) {
+                    final task = tasks[index];
+                    return ChecklistItem(
+                      title: task.title,
+                      subtitle: task.category,
+                      isCompleted: task.isCompletedToday,
+                      onTap: () {
+                        if (!task.isCompletedToday) {
+                          ref.read(dailyTasksProvider.notifier).completeTask(task.id);
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const Icon(LucideIcons.checkCircle2, color: Colors.white),
+                                  const SizedBox(width: 12),
+                                  Text('${task.title} completado!', style: const TextStyle(fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                              backgroundColor: AppTheme.primaryColor,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              margin: const EdgeInsets.only(bottom: 24, left: 24, right: 24),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      },
+                    );
                   },
-                );
-              },
-            ),
-          ),
+                ),
+              ),
           Container(
             padding: const EdgeInsets.all(24.0),
             decoration: BoxDecoration(
@@ -87,6 +91,10 @@ class RoutineScreen extends ConsumerWidget {
             ),
           ),
         ],
+      );
+    },
+    loading: () => const Center(child: CircularProgressIndicator()),
+    error: (e, _) => Center(child: Text('Error: $e')),
       ),
     );
   }

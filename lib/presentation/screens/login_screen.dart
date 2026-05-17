@@ -206,7 +206,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           // Password field
           _buildLabel('Contraseña'),
           const SizedBox(height: 8),
-          _buildPasswordField(),
+          _buildPasswordField(controller: _passwordController),
           const SizedBox(height: 12),
           // Forgot password
           Align(
@@ -360,7 +360,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  Widget _buildPasswordField() {
+  Widget _buildPasswordField({TextEditingController? controller}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -374,6 +374,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ],
       ),
       child: TextField(
+        controller: controller,
         obscureText: _obscurePassword,
         style: const TextStyle(
           fontSize: 16,

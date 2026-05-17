@@ -11,6 +11,7 @@ import '../providers/routine_provider.dart';
 import '../providers/injury_provider.dart';
 import '../providers/gamification_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/exercise_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -133,7 +134,7 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              _buildExerciseCards(context),
+              _buildExerciseCards(context, ref),
             ],
           ),
         ),
@@ -554,94 +555,111 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildExerciseCards(BuildContext context) {
-    final exercises = MockData.exercises.take(3).toList();
-    return Column(
-      children: exercises.map((ex) {
-        final diffColor = Color(ex['difficultyColor'] as int);
-        return BouncingWrapper(
-          onTap: () => context.push('/exercise_detail', extra: ex),
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 12,
+  Widget _buildExerciseCards(BuildContext context, WidgetRef ref) {
+    final exercisesState = ref.watch(recommendedExercisesProvider);
+
+    return exercisesState.when(
+      data: (exercises) {
+        if (exercises.isEmpty) {
+          return const Center(child: Text('No hay ejercicios recomendados hoy.'));
+        }
+        return Column(
+          children: exercises.map((ex) {
+            // Pick a color based on difficulty
+            Color diffColor;
+            switch (ex.difficulty) {
+              case 'beginner': diffColor = const Color(0xFF20A090); break;
+              case 'intermediate': diffColor = const Color(0xFFFF6B35); break;
+              case 'advanced': diffColor = const Color(0xFFE65100); break;
+              default: diffColor = const Color(0xFF20A090);
+            }
+
+            return BouncingWrapper(
+              onTap: () => context.push('/exercise_detail', extra: ex),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 12,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryLight,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Center(
-                    child: Text(ex['emoji'],
-                        style: const TextStyle(fontSize: 24)),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        ex['name'],
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
-                          letterSpacing: -0.2,
-                        ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryLight,
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
+                      child: Center(
+                        child: Text('💪', style: const TextStyle(fontSize: 24)),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${ex['sets']} sets · ${ex['reps']}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.textSecondary,
-                              fontWeight: FontWeight.w500,
+                            ex.title,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.textPrimary,
+                              letterSpacing: -0.2,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: diffColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              ex['difficulty'],
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: diffColor,
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text(
+                                '${ex.defaultSets} sets · ${ex.defaultReps}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: diffColor.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  ex.difficultyLabel,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: diffColor,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const Icon(LucideIcons.chevronRight,
+                        size: 18, color: AppTheme.textSecondary),
+                  ],
                 ),
-                const Icon(LucideIcons.chevronRight,
-                    size: 18, color: AppTheme.textSecondary),
-              ],
-            ),
-          ),
+              ),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error: $e')),
     );
   }
 

@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/mock_data.dart';
 import '../widgets/bouncing_wrapper.dart';
+import '../providers/injury_provider.dart';
+import '../../data/models/injury_model.dart';
 
-class BodyMapScreen extends StatefulWidget {
+class BodyMapScreen extends ConsumerStatefulWidget {
   const BodyMapScreen({Key? key}) : super(key: key);
 
   @override
-  State<BodyMapScreen> createState() => _BodyMapScreenState();
+  ConsumerState<BodyMapScreen> createState() => _BodyMapScreenState();
 }
 
-class _BodyMapScreenState extends State<BodyMapScreen> {
+class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
   String? _selectedPart;
   bool _showFront = true;
 
@@ -166,6 +169,9 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final injuriesState = ref.watch(injuriesProvider);
+    final activeInjuries = injuriesState.value?.where((i) => i.status != 'healed').toList() ?? [];
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
@@ -224,10 +230,10 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
           const SizedBox(height: 16),
           // Body diagram
           Expanded(
-            child: _buildBodyDiagram(),
+            child: _buildBodyDiagram(activeInjuries),
           ),
           // Active injuries at bottom
-          _buildActiveInjuriesBar(),
+          _buildActiveInjuriesBar(activeInjuries),
         ],
       ),
     );
@@ -259,22 +265,22 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
     );
   }
 
-  Widget _buildBodyDiagram() {
+  Widget _buildBodyDiagram(List<InjuryModel> activeInjuries) {
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: _showFront ? _buildFrontBody() : _buildBackBody(),
+        child: _showFront ? _buildFrontBody(activeInjuries) : _buildBackBody(activeInjuries),
       ),
     );
   }
 
-  Widget _buildFrontBody() {
+  Widget _buildFrontBody(List<InjuryModel> activeInjuries) {
     final parts = MockData.bodyParts;
     return Column(
       children: [
         // Head
         _buildBodyZone('head', '🧠', 'Cabeza',
-            parts.firstWhere((p) => p['id'] == 'head')['commonInjuries']),
+            parts.firstWhere((p) => p['id'] == 'head')['commonInjuries'], activeInjuries),
         const SizedBox(height: 8),
         // Shoulders
         Row(
@@ -285,14 +291,14 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
                 '💪',
                 'Hombro Izq.',
                 parts.firstWhere(
-                    (p) => p['id'] == 'shoulder_left')['commonInjuries']),
+                    (p) => p['id'] == 'shoulder_left')['commonInjuries'], activeInjuries),
             const SizedBox(width: 48),
             _buildBodyZone(
                 'shoulder_right',
                 '💪',
                 'Hombro Der.',
                 parts.firstWhere(
-                    (p) => p['id'] == 'shoulder_right')['commonInjuries']),
+                    (p) => p['id'] == 'shoulder_right')['commonInjuries'], activeInjuries),
           ],
         ),
         const SizedBox(height: 8),
@@ -305,27 +311,27 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
                 '🦾',
                 'Codo Izq.',
                 parts.firstWhere(
-                    (p) => p['id'] == 'elbow_left')['commonInjuries']),
+                    (p) => p['id'] == 'elbow_left')['commonInjuries'], activeInjuries),
             const SizedBox(width: 80),
             _buildBodyZone(
                 'elbow_right',
                 '🦾',
                 'Codo Der.',
                 parts.firstWhere(
-                    (p) => p['id'] == 'elbow_right')['commonInjuries']),
+                    (p) => p['id'] == 'elbow_right')['commonInjuries'], activeInjuries),
           ],
         ),
         const SizedBox(height: 8),
         // Back
         _buildBodyZone('back_upper', '🔙', 'Espalda Alta',
-            parts.firstWhere((p) => p['id'] == 'back_upper')['commonInjuries']),
+            parts.firstWhere((p) => p['id'] == 'back_upper')['commonInjuries'], activeInjuries),
         const SizedBox(height: 8),
         _buildBodyZone('back_lower', '🔙', 'Espalda Baja',
-            parts.firstWhere((p) => p['id'] == 'back_lower')['commonInjuries']),
+            parts.firstWhere((p) => p['id'] == 'back_lower')['commonInjuries'], activeInjuries),
         const SizedBox(height: 8),
         // Hip
         _buildBodyZone('hip', '🍑', 'Cadera',
-            parts.firstWhere((p) => p['id'] == 'hip')['commonInjuries']),
+            parts.firstWhere((p) => p['id'] == 'hip')['commonInjuries'], activeInjuries),
         const SizedBox(height: 8),
         // Knees
         Row(
@@ -336,15 +342,14 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
                 '🦵',
                 'Rodilla Izq.',
                 parts.firstWhere(
-                    (p) => p['id'] == 'knee_left')['commonInjuries'],
-                hasInjury: true),
+                    (p) => p['id'] == 'knee_left')['commonInjuries'], activeInjuries),
             const SizedBox(width: 48),
             _buildBodyZone(
                 'knee_right',
                 '🦵',
                 'Rodilla Der.',
                 parts.firstWhere(
-                    (p) => p['id'] == 'knee_right')['commonInjuries']),
+                    (p) => p['id'] == 'knee_right')['commonInjuries'], activeInjuries),
           ],
         ),
         const SizedBox(height: 8),
@@ -357,14 +362,14 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
                 '🦶',
                 'Tobillo Izq.',
                 parts.firstWhere(
-                    (p) => p['id'] == 'ankle_left')['commonInjuries']),
+                    (p) => p['id'] == 'ankle_left')['commonInjuries'], activeInjuries),
             const SizedBox(width: 48),
             _buildBodyZone(
                 'ankle_right',
                 '🦶',
                 'Tobillo Der.',
                 parts.firstWhere(
-                    (p) => p['id'] == 'ankle_right')['commonInjuries']),
+                    (p) => p['id'] == 'ankle_right')['commonInjuries'], activeInjuries),
           ],
         ),
         const SizedBox(height: 24),
@@ -372,12 +377,12 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
     );
   }
 
-  Widget _buildBackBody() {
+  Widget _buildBackBody(List<InjuryModel> activeInjuries) {
     final parts = MockData.bodyParts;
     return Column(
       children: [
         _buildBodyZone('head', '🧠', 'Cabeza',
-            parts.firstWhere((p) => p['id'] == 'head')['commonInjuries']),
+            parts.firstWhere((p) => p['id'] == 'head')['commonInjuries'], activeInjuries),
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -387,26 +392,25 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
                 '💪',
                 'Hombro Izq.',
                 parts.firstWhere(
-                    (p) => p['id'] == 'shoulder_left')['commonInjuries'],
-                hasInjury: true),
+                    (p) => p['id'] == 'shoulder_left')['commonInjuries'], activeInjuries),
             const SizedBox(width: 48),
             _buildBodyZone(
                 'shoulder_right',
                 '💪',
                 'Hombro Der.',
                 parts.firstWhere(
-                    (p) => p['id'] == 'shoulder_right')['commonInjuries']),
+                    (p) => p['id'] == 'shoulder_right')['commonInjuries'], activeInjuries),
           ],
         ),
         const SizedBox(height: 8),
         _buildBodyZone('back_upper', '🔙', 'Espalda Alta',
-            parts.firstWhere((p) => p['id'] == 'back_upper')['commonInjuries']),
+            parts.firstWhere((p) => p['id'] == 'back_upper')['commonInjuries'], activeInjuries),
         const SizedBox(height: 8),
         _buildBodyZone('back_lower', '🔙', 'Espalda Baja',
-            parts.firstWhere((p) => p['id'] == 'back_lower')['commonInjuries']),
+            parts.firstWhere((p) => p['id'] == 'back_lower')['commonInjuries'], activeInjuries),
         const SizedBox(height: 8),
         _buildBodyZone('hip', '🍑', 'Cadera',
-            parts.firstWhere((p) => p['id'] == 'hip')['commonInjuries']),
+            parts.firstWhere((p) => p['id'] == 'hip')['commonInjuries'], activeInjuries),
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -416,15 +420,14 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
                 '🦵',
                 'Rodilla Izq.',
                 parts.firstWhere(
-                    (p) => p['id'] == 'knee_left')['commonInjuries'],
-                hasInjury: true),
+                    (p) => p['id'] == 'knee_left')['commonInjuries'], activeInjuries),
             const SizedBox(width: 48),
             _buildBodyZone(
                 'knee_right',
                 '🦵',
                 'Rodilla Der.',
                 parts.firstWhere(
-                    (p) => p['id'] == 'knee_right')['commonInjuries']),
+                    (p) => p['id'] == 'knee_right')['commonInjuries'], activeInjuries),
           ],
         ),
         const SizedBox(height: 8),
@@ -436,14 +439,14 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
                 '🦶',
                 'Tobillo Izq.',
                 parts.firstWhere(
-                    (p) => p['id'] == 'ankle_left')['commonInjuries']),
+                    (p) => p['id'] == 'ankle_left')['commonInjuries'], activeInjuries),
             const SizedBox(width: 48),
             _buildBodyZone(
                 'ankle_right',
                 '🦶',
                 'Tobillo Der.',
                 parts.firstWhere(
-                    (p) => p['id'] == 'ankle_right')['commonInjuries']),
+                    (p) => p['id'] == 'ankle_right')['commonInjuries'], activeInjuries),
           ],
         ),
         const SizedBox(height: 24),
@@ -451,13 +454,33 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
     );
   }
 
+  String _getSlugForUiId(String id) {
+    switch (id) {
+      case 'shoulder_left': return 'left-shoulder';
+      case 'shoulder_right': return 'right-shoulder';
+      case 'elbow_left': return 'left-elbow';
+      case 'elbow_right': return 'right-elbow';
+      case 'knee_left': return 'left-knee';
+      case 'knee_right': return 'right-knee';
+      case 'ankle_left': return 'left-ankle';
+      case 'ankle_right': return 'right-ankle';
+      case 'back_upper': return 'upper-back';
+      case 'back_lower': return 'lower-back';
+      default: return id;
+    }
+  }
+
   Widget _buildBodyZone(
     String id,
     String emoji,
     String name,
-    List<dynamic> injuries, {
-    bool hasInjury = false,
-  }) {
+    List<dynamic> injuries,
+    List<InjuryModel> activeInjuries,
+  ) {
+    final slug = _getSlugForUiId(id);
+    final hasInjury = activeInjuries.any((injury) => 
+        injury.bodyPartSlug == slug || (id == 'hip' && (injury.bodyPartSlug == 'left-hip' || injury.bodyPartSlug == 'right-hip'))
+    );
     final isSelected = _selectedPart == id;
     return BouncingWrapper(
       onTap: () =>
@@ -521,7 +544,7 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
     );
   }
 
-  Widget _buildActiveInjuriesBar() {
+  Widget _buildActiveInjuriesBar(List<InjuryModel> activeInjuries) {
     return Container(
       padding: EdgeInsets.only(
         left: 24,
@@ -564,7 +587,7 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  '${MockData.injuries.where((i) => i['status'] != 'Recuperado').length}',
+                  '${activeInjuries.length}',
                   style: const TextStyle(
                     color: AppTheme.primaryColor,
                     fontWeight: FontWeight.w800,
@@ -575,45 +598,41 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            children: MockData.injuries.map((injury) {
-              final isActive = injury['status'] != 'Recuperado';
-              return Expanded(
-                child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? AppTheme.primaryLight
-                        : AppTheme.backgroundColor,
-                    borderRadius: BorderRadius.circular(14),
-                    border: isActive
-                        ? Border.all(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.3))
-                        : null,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(injury['icon'],
-                          style: const TextStyle(fontSize: 18)),
-                      const SizedBox(height: 4),
-                      Text(
-                        injury['name'].split(' ').take(2).join(' '),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: isActive
-                              ? AppTheme.primaryColor
-                              : AppTheme.textSecondary,
+          if (activeInjuries.isEmpty)
+            const Text('Sin lesiones activas.', style: TextStyle(color: Colors.grey))
+          else
+            Row(
+              children: activeInjuries.map((injury) {
+                return Expanded(
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryLight,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                              color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('⚕️',
+                            style: TextStyle(fontSize: 18)),
+                        const SizedBox(height: 4),
+                        Text(
+                          injury.title.split(' ').take(2).join(' '),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.primaryColor,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              );
-            }).toList(),
-          ),
+                );
+              }).toList(),
+            ),
         ],
       ),
     );

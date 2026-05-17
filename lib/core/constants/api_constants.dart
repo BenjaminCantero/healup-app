@@ -1,13 +1,18 @@
+import 'package:flutter/foundation.dart';
+import 'dart:io' show Platform;
+
 class ApiConstants {
   ApiConstants._();
 
   // ── Base URL ───────────────────────────────────────────────────────────────
-  // Android Emulator: 10.0.2.2 es el alias de localhost en el host
-  // Dispositivo físico: Cambia a la IP local de tu PC (ej. 192.168.1.50)
-  // Producción: https://api.healup.app
-  static const String _host = 'http://10.0.2.2:3000';
-  static const String baseUrl = '$_host/api/v1';
+  static String get _host {
+    if (kIsWeb) return 'http://localhost:3000';
+    if (Platform.isAndroid) return 'http://192.168.1.9:3000'; // IP de tu PC para la tablet
+    // Escritorio (Linux/Windows/macOS) o iOS Simulator
+    return 'http://localhost:3000';
+  }
 
+  static String get baseUrl => '$_host/api/v1';
   // ── Auth ──────────────────────────────────────────────────────────────────
   static const String register = '/auth/register';
   static const String login = '/auth/login';

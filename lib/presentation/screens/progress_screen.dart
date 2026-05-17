@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../widgets/custom_card.dart';
+import '../providers/gamification_provider.dart';
 import '../providers/routine_provider.dart';
 
 class ProgressScreen extends ConsumerWidget {
@@ -13,7 +14,8 @@ class ProgressScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final progressVal = ref.watch(routineProgressProvider);
     final completedCount = ref.watch(routineCompletedCountProvider);
-    final totalCount = ref.watch(routineProvider).length;
+    final tasksState = ref.watch(dailyTasksProvider);
+    final totalCount = tasksState.value?.length ?? 1;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
