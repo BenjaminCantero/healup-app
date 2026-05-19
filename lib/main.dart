@@ -14,16 +14,17 @@ void main() {
   );
 }
 
-class HealUpApp extends StatelessWidget {
+class HealUpApp extends ConsumerWidget {
   const HealUpApp({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
       title: 'HealUp',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      routerConfig: AppRouter.router,
+      routerConfig: router,
     );
   }
 }

@@ -7,17 +7,40 @@ final gamificationRepositoryProvider =
     Provider<GamificationRepository>((_) => GamificationRepository());
 
 // ─── Dashboard Stats ──────────────────────────────────────────────────────────
-final dashboardStatsProvider = FutureProvider<DashboardStatsModel>((ref) async {
-  final repo = ref.read(gamificationRepositoryProvider);
-  return repo.getDashboardStats();
-});
+class DashboardStatsNotifier extends AsyncNotifier<DashboardStatsModel> {
+  @override
+  Future<DashboardStatsModel> build() async {
+    final repo = ref.read(gamificationRepositoryProvider);
+    return repo.getDashboardStats();
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      return ref.read(gamificationRepositoryProvider).getDashboardStats();
+    });
+  }
+}
+
+final dashboardStatsProvider = AsyncNotifierProvider<DashboardStatsNotifier, DashboardStatsModel>(DashboardStatsNotifier.new);
 
 // ─── Achievements ─────────────────────────────────────────────────────────────
-final achievementsProvider =
-    FutureProvider<List<AchievementModel>>((ref) async {
-  final repo = ref.read(gamificationRepositoryProvider);
-  return repo.getAchievements();
-});
+class AchievementsNotifier extends AsyncNotifier<List<AchievementModel>> {
+  @override
+  Future<List<AchievementModel>> build() async {
+    final repo = ref.read(gamificationRepositoryProvider);
+    return repo.getAchievements();
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      return ref.read(gamificationRepositoryProvider).getAchievements();
+    });
+  }
+}
+
+final achievementsProvider = AsyncNotifierProvider<AchievementsNotifier, List<AchievementModel>>(AchievementsNotifier.new);
 
 // ─── Daily Tasks ──────────────────────────────────────────────────────────────
 class DailyTasksNotifier extends AsyncNotifier<List<DailyTaskModel>> {
@@ -31,6 +54,8 @@ class DailyTasksNotifier extends AsyncNotifier<List<DailyTaskModel>> {
 
   Future<void> completeTask(String taskId) async {
     await _repo.completeTask(taskId);
+    ref.read(dashboardStatsProvider.notifier).refresh(); // Notify stats to update (XP, level)
+    ref.read(achievementsProvider.notifier).refresh(); // Check if new achievements were unlocked
     state = AsyncData(
       state.value
               ?.map((t) => t.id == taskId

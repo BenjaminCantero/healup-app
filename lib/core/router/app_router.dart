@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../presentation/screens/main_wrapper.dart';
@@ -16,15 +17,54 @@ import '../../presentation/screens/exercise_detail_screen.dart';
 import '../../presentation/screens/pain_log_screen.dart';
 import '../../presentation/screens/injury_detail_screen.dart';
 import '../../presentation/screens/routine_screen.dart';
+import '../../presentation/providers/auth_provider.dart';
 import '../../data/models/injury_model.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'root');
 
-class AppRouter {
-  static final router = GoRouter(
+// ─── Public routes (no auth needed) ──────────────────────────────────────────
+const _publicRoutes = ['/onboarding', '/login', '/register'];
+
+// ─── Router provider (uses Riverpod for auth state) ──────────────────────────
+final appRouterProvider = Provider<GoRouter>((ref) {
+  // Listen to auth changes so the router refreshes when login/logout happens
+  final authListenable = _AuthStateListenable(ref);
+
+  return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/onboarding',
+    refreshListenable: authListenable,
+    redirect: (context, state) async {
+      final authState = ref.read(authProvider);
+      final onboardingState = ref.read(onboardingCompletedProvider);
+
+      // While auth or onboarding are loading, don't redirect yet
+      if (authState.isLoading || onboardingState.isLoading) return null;
+
+      final isAuthenticated = authState.value?.isAuthenticated ?? false;
+      final onboardingDone = onboardingState.value ?? false;
+      final currentPath = state.matchedLocation;
+      final isPublic = _publicRoutes.contains(currentPath);
+
+      // 1. If onboarding not done, always send to onboarding
+      if (!onboardingDone && currentPath != '/onboarding') {
+        return '/onboarding';
+      }
+
+      // 2. If authenticated and trying to access public routes, send home
+      if (isAuthenticated && isPublic) {
+        return '/home';
+      }
+
+      // 3. If NOT authenticated and trying to access protected routes
+      if (!isAuthenticated && !isPublic) {
+        return '/login';
+      }
+
+      // No redirect needed
+      return null;
+    },
     routes: [
       // ─── Auth flow (no shell) ────────────────────────────────────────────
       GoRoute(
@@ -131,4 +171,19 @@ class AppRouter {
       ),
     ],
   );
+});
+
+// ─── Compatibility shim — kept for screens that still reference AppRouter.router
+class AppRouter {
+  static GoRouter get router => throw UnimplementedError(
+    'Use ref.watch(appRouterProvider) or ProviderScope instead of AppRouter.router directly.',
+  );
+}
+
+// ─── Listenable that notifies GoRouter when auth state changes ─────────────
+class _AuthStateListenable extends ChangeNotifier {
+  _AuthStateListenable(Ref ref) {
+    ref.listen(authProvider, (_, __) => notifyListeners());
+    ref.listen(onboardingCompletedProvider, (_, __) => notifyListeners());
+  }
 }

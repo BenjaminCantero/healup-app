@@ -5,15 +5,39 @@ import '../../data/repositories/pain_log_repository.dart';
 
 final painLogRepositoryProvider = Provider((ref) => PainLogRepository());
 
-final painLogsProvider = FutureProvider<List<PainLogModel>>((ref) async {
-  final repo = ref.read(painLogRepositoryProvider);
-  return await repo.getPainLogs(limit: 14);
-});
+class PainLogsNotifier extends AsyncNotifier<List<PainLogModel>> {
+  @override
+  Future<List<PainLogModel>> build() async {
+    final repo = ref.read(painLogRepositoryProvider);
+    return repo.getPainLogs(limit: 14);
+  }
 
-final painStatsProvider = FutureProvider<PainStatsModel>((ref) async {
-  final repo = ref.read(painLogRepositoryProvider);
-  return await repo.getPainStats();
-});
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      return ref.read(painLogRepositoryProvider).getPainLogs(limit: 14);
+    });
+  }
+}
+
+final painLogsProvider = AsyncNotifierProvider<PainLogsNotifier, List<PainLogModel>>(PainLogsNotifier.new);
+
+class PainStatsNotifier extends AsyncNotifier<PainStatsModel> {
+  @override
+  Future<PainStatsModel> build() async {
+    final repo = ref.read(painLogRepositoryProvider);
+    return repo.getPainStats();
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      return ref.read(painLogRepositoryProvider).getPainStats();
+    });
+  }
+}
+
+final painStatsProvider = AsyncNotifierProvider<PainStatsNotifier, PainStatsModel>(PainStatsNotifier.new);
 
 class PainLogNotifier extends AsyncNotifier<void> {
   @override
@@ -26,8 +50,8 @@ class PainLogNotifier extends AsyncNotifier<void> {
     state = await AsyncValue.guard(() async {
       final repo = ref.read(painLogRepositoryProvider);
       await repo.addPainLog(painLevel, notes: notes, injuryId: injuryId);
-      ref.invalidate(painLogsProvider);
-      ref.invalidate(painStatsProvider);
+      await ref.read(painLogsProvider.notifier).refresh();
+      await ref.read(painStatsProvider.notifier).refresh();
     });
   }
 }

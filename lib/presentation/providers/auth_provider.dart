@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../core/storage/token_storage.dart';
@@ -112,12 +113,22 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 final authProvider =
     AsyncNotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
 
-// ─── Onboarding (mantiene estado en memoria + SharedPreferences) ──────────────
-class OnboardingNotifier extends Notifier<bool> {
+// ─── Onboarding (persists in SharedPreferences across restarts) ───────────────
+class OnboardingNotifier extends AsyncNotifier<bool> {
+  static const _kOnboardingKey = 'healup_onboarding_completed';
+
   @override
-  bool build() => false;
-  void complete() => state = true;
+  Future<bool> build() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kOnboardingKey) ?? false;
+  }
+
+  Future<void> complete() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kOnboardingKey, true);
+    state = const AsyncData(true);
+  }
 }
 
 final onboardingCompletedProvider =
-    NotifierProvider<OnboardingNotifier, bool>(OnboardingNotifier.new);
+    AsyncNotifierProvider<OnboardingNotifier, bool>(OnboardingNotifier.new);

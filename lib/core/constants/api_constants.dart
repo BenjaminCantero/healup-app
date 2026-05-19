@@ -5,10 +5,15 @@ class ApiConstants {
   ApiConstants._();
 
   // ── Base URL ───────────────────────────────────────────────────────────────
+  /// Use `--dart-define=API_URL=https://your-server.com` when building
+  /// for production. In development, falls back to localhost or the
+  /// Android emulator/device address automatically.
+  static const String _envApiUrl = String.fromEnvironment('API_URL', defaultValue: '');
+
   static String get _host {
+    if (_envApiUrl.isNotEmpty) return _envApiUrl;
     if (kIsWeb) return 'http://localhost:3000';
-    if (Platform.isAndroid) return 'http://192.168.1.9:3000'; // IP de tu PC para la tablet
-    // Escritorio (Linux/Windows/macOS) o iOS Simulator
+    if (Platform.isAndroid) return 'http://10.0.2.2:3000'; // Android emulator
     return 'http://localhost:3000';
   }
 
