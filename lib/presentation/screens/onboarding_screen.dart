@@ -18,28 +18,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   final List<_OnboardingPage> _pages = const [
     _OnboardingPage(
-      emoji: '🏥',
+      icon: LucideIcons.activitySquare,
       gradientColors: [Color(0xFF20A090), Color(0xFF007A65)],
-      title: 'Recupera tu mejor versión',
+      title: 'Bienvenido a HealUp',
       subtitle:
-          'HealUp te acompaña en cada etapa de tu rehabilitación. Sigue tu progreso, reduce el dolor y vuelve al deporte.',
-      tag: 'Rehabilitación inteligente',
+          'La plataforma definitiva para la gestión y rehabilitación clínica de lesiones deportivas y musculares.',
+      tag: 'FISIOTERAPIA DIGITAL',
     ),
     _OnboardingPage(
-      emoji: '📊',
+      icon: LucideIcons.lineChart,
       gradientColors: [Color(0xFF2EC4B6), Color(0xFF20A090)],
-      title: 'Seguimiento en tiempo real',
+      title: 'Monitoreo Clínico',
       subtitle:
-          'Registra tu nivel de dolor cada día, visualiza tu progreso con gráficas y celebra cada pequeña victoria.',
-      tag: 'Datos que importan',
+          'Registra la evolución de tu dolor diariamente. Generamos reportes precisos para acelerar tu recuperación.',
+      tag: 'DATOS MÉDICOS',
     ),
     _OnboardingPage(
-      emoji: '🏆',
+      icon: LucideIcons.dumbbell,
       gradientColors: [Color(0xFF007A65), Color(0xFF004D42)],
-      title: 'Mantente motivado',
+      title: 'Recuperación Activa',
       subtitle:
-          'Gana logros, mantén rachas diarias y recibe recomendaciones personalizadas de tu coach virtual.',
-      tag: 'Gamificación & Motivación',
+          'Sigue rutinas validadas, alcanza metas de movilidad y supera tus marcas. Tu bienestar, estructurado.',
+      tag: 'GAMIFICACIÓN & SALUD',
     ),
   ];
 
@@ -216,19 +216,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 80),
-              // Emoji hero
+              // Icon hero
               Center(
                 child: Container(
-                  width: 180,
-                  height: 180,
+                  width: 160,
+                  height: 160,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Colors.white.withValues(alpha: 0.15),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 30,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
                   child: Center(
-                    child: Text(
-                      page.emoji,
-                      style: const TextStyle(fontSize: 80),
+                    child: Icon(
+                      page.icon,
+                      size: 72,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -284,14 +293,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 }
 
 class _OnboardingPage {
-  final String emoji;
+  final IconData icon;
   final List<Color> gradientColors;
   final String title;
   final String subtitle;
   final String tag;
 
   const _OnboardingPage({
-    required this.emoji,
+    required this.icon,
     required this.gradientColors,
     required this.title,
     required this.subtitle,

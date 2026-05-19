@@ -113,20 +113,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: const Center(
-              child: Text('🏥', style: TextStyle(fontSize: 32)),
+              child: Icon(LucideIcons.activity, color: Colors.white, size: 32),
             ),
           ),
           const SizedBox(height: 28),
           const Text(
-            'Bienvenido\nde vuelta',
+            'Acceso a Pacientes',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 36,
+              fontSize: 34,
               fontWeight: FontWeight.w800,
               letterSpacing: -1,
               height: 1.1,
@@ -134,9 +141,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
           const SizedBox(height: 12),
           Text(
-            'Tu recuperación te espera 💪',
+            'Gestiona tu programa de rehabilitación clínica',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
+              color: Colors.white.withValues(alpha: 0.85),
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
@@ -155,13 +162,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           const SizedBox(height: 8),
           // Google Button
           _buildSocialButton(
-            emoji: '🔵',
+            icon: LucideIcons.chrome,
             label: 'Continuar con Google',
             onTap: _login,
           ),
           const SizedBox(height: 12),
           _buildSocialButton(
-            emoji: '⚫',
+            icon: LucideIcons.apple,
             label: 'Continuar con Apple',
             onTap: _login,
           ),
@@ -409,7 +416,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Widget _buildSocialButton({
-    required String emoji,
+    required IconData icon,
     required String label,
     required VoidCallback onTap,
   }) {
@@ -422,20 +429,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppTheme.textSecondary.withValues(alpha: 0.15),
+            color: Colors.black.withValues(alpha: 0.05),
+            width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 20)),
+            Icon(icon, size: 20, color: AppTheme.textPrimary),
             const SizedBox(width: 12),
             Text(
               label,
@@ -443,6 +451,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.textPrimary,
+                letterSpacing: -0.3,
               ),
             ),
           ],

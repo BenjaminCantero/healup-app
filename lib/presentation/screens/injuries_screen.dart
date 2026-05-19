@@ -88,13 +88,21 @@ class InjuriesScreen extends ConsumerWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/add_injury'),
-        backgroundColor: AppTheme.primaryColor,
-        icon: const Icon(LucideIcons.plus, color: Colors.white),
-        label: const Text('Nueva Lesión',
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 90.0),
+        child: FloatingActionButton.extended(
+          onPressed: () => context.push('/add_injury'),
+          backgroundColor: AppTheme.primaryColor,
+          elevation: 4,
+          icon: const Icon(LucideIcons.plus, color: Colors.white),
+          label: const Text(
+            'Nueva Lesión',
             style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.w700)),
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
       ),
     );
   }
