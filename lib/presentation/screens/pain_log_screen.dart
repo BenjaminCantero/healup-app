@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/constants/mock_data.dart';
+import '../providers/pain_log_provider.dart';
+import '../../data/models/pain_log_model.dart';
 
-class PainLogScreen extends StatefulWidget {
+class PainLogScreen extends ConsumerStatefulWidget {
   const PainLogScreen({Key? key}) : super(key: key);
 
   @override
-  State<PainLogScreen> createState() => _PainLogScreenState();
+  ConsumerState<PainLogScreen> createState() => _PainLogScreenState();
 }
 
-class _PainLogScreenState extends State<PainLogScreen> {
+class _PainLogScreenState extends ConsumerState<PainLogScreen> {
   double _todayPain = 2.0;
-  int _selectedDay = 6; // today
+  int _selectedDay = 0; // index of the selected day
   String _todayNote = '';
   bool _saved = false;
 
@@ -46,29 +48,36 @@ class _PainLogScreenState extends State<PainLogScreen> {
   }
 
   void _save() {
-    setState(() => _saved = true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(LucideIcons.checkCircle2, color: Colors.white),
-            SizedBox(width: 12),
-            Text('Dolor registrado correctamente',
-                style: TextStyle(fontWeight: FontWeight.w600)),
-          ],
+    ref.read(painLogNotifierProvider.notifier).addLog(
+      _todayPain.toInt(),
+      notes: _todayNote.isNotEmpty ? _todayNote : null,
+    ).then((_) {
+      setState(() => _saved = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(LucideIcons.checkCircle2, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Dolor registrado correctamente',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+            ],
+          ),
+          backgroundColor: AppTheme.primaryColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          margin: const EdgeInsets.all(24),
+          duration: const Duration(seconds: 2),
         ),
-        backgroundColor: AppTheme.primaryColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        margin: const EdgeInsets.all(24),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final history = MockData.painLogHistory;
+    final logsAsync = ref.watch(painLogsProvider);
+    final statsAsync = ref.watch(painStatsProvider);
+    final isSaving = ref.watch(painLogNotifierProvider).isLoading;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -88,51 +97,64 @@ class _PainLogScreenState extends State<PainLogScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Today card
-            _buildTodayCard(),
-            const SizedBox(height: 28),
+      body: logsAsync.when(
+        data: (logs) {
+          // Sort logs chronologically
+          final sortedLogs = List<PainLogModel>.from(logs)
+            ..sort((a, b) => a.loggedAt.compareTo(b.loggedAt));
+            
+          // If we have selected an index out of bounds, fix it
+          if (sortedLogs.isNotEmpty && _selectedDay >= sortedLogs.length) {
+            _selectedDay = sortedLogs.length - 1;
+          }
 
-            // Weekly graph
-            const Text(
-              'Historial semanal',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textPrimary,
-                letterSpacing: -0.5,
-              ),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTodayCard(),
+                const SizedBox(height: 28),
+                if (sortedLogs.isNotEmpty) ...[
+                  const Text(
+                    'Historial semanal',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildWeeklyChart(sortedLogs),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'Notas del día',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildDaySelector(sortedLogs),
+                  const SizedBox(height: 12),
+                  _buildSelectedDayNote(sortedLogs),
+                  const SizedBox(height: 28),
+                ],
+                statsAsync.when(
+                  data: (stats) => _buildTrendSummary(stats, sortedLogs),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            _buildWeeklyChart(history),
-            const SizedBox(height: 28),
-
-            // Day selector & history
-            const Text(
-              'Notas del día',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textPrimary,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildDaySelector(history),
-            const SizedBox(height: 12),
-            _buildSelectedDayNote(history),
-            const SizedBox(height: 28),
-
-            // Trend summary
-            _buildTrendSummary(),
-          ],
-        ),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, st) => Center(child: Text('Error: $e')),
       ),
-      // Save button
       bottomNavigationBar: Container(
         padding: EdgeInsets.only(
           left: 24,
@@ -151,17 +173,15 @@ class _PainLogScreenState extends State<PainLogScreen> {
           ],
         ),
         child: GestureDetector(
-          onTap: _saved ? null : _save,
+          onTap: (_saved || isSaving) ? null : _save,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             padding: const EdgeInsets.symmetric(vertical: 18),
             decoration: BoxDecoration(
-              gradient: _saved
-                  ? null
-                  : AppTheme.primaryGradient,
-              color: _saved ? AppTheme.primaryLight : null,
+              gradient: (_saved || isSaving) ? null : AppTheme.primaryGradient,
+              color: (_saved || isSaving) ? AppTheme.primaryLight : null,
               borderRadius: BorderRadius.circular(20),
-              boxShadow: _saved
+              boxShadow: (_saved || isSaving)
                   ? null
                   : [
                       BoxShadow(
@@ -174,16 +194,23 @@ class _PainLogScreenState extends State<PainLogScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  _saved ? LucideIcons.checkCircle2 : LucideIcons.save,
-                  color: _saved ? AppTheme.primaryColor : Colors.white,
-                  size: 20,
-                ),
+                if (isSaving)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(color: AppTheme.primaryColor, strokeWidth: 2),
+                  )
+                else
+                  Icon(
+                    _saved ? LucideIcons.checkCircle2 : LucideIcons.save,
+                    color: _saved ? AppTheme.primaryColor : Colors.white,
+                    size: 20,
+                  ),
                 const SizedBox(width: 10),
                 Text(
-                  _saved ? 'Guardado' : 'Guardar registro de hoy',
+                  isSaving ? 'Guardando...' : _saved ? 'Guardado' : 'Guardar registro de hoy',
                   style: TextStyle(
-                    color: _saved ? AppTheme.primaryColor : Colors.white,
+                    color: (_saved || isSaving) ? AppTheme.primaryColor : Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
@@ -219,7 +246,7 @@ class _PainLogScreenState extends State<PainLogScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Hoy — ${_getDayName()}',
+                    'Hoy — ${_getDayName(DateTime.now().weekday)}',
                     style: TextStyle(
                       fontSize: 13,
                       color: AppTheme.textSecondary,
@@ -238,7 +265,6 @@ class _PainLogScreenState extends State<PainLogScreen> {
                   ),
                 ],
               ),
-              // Emoji
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
                 child: Text(
@@ -250,7 +276,6 @@ class _PainLogScreenState extends State<PainLogScreen> {
             ],
           ),
           const SizedBox(height: 24),
-          // Pain value
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -268,7 +293,7 @@ class _PainLogScreenState extends State<PainLogScreen> {
                   ),
                 ),
               ),
-              Text(
+              const Text(
                 ' /10',
                 style: TextStyle(
                   fontSize: 22,
@@ -292,7 +317,6 @@ class _PainLogScreenState extends State<PainLogScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          // Slider
           SliderTheme(
             data: SliderThemeData(
               activeTrackColor: _painColor,
@@ -310,23 +334,14 @@ class _PainLogScreenState extends State<PainLogScreen> {
               onChanged: (val) => setState(() => _todayPain = val),
             ),
           ),
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Sin dolor',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
-                      fontWeight: FontWeight.w600)),
-              Text('Insoportable',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
-                      fontWeight: FontWeight.w600)),
+              Text('Sin dolor', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
+              Text('Insoportable', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 20),
-          // Note input
           Container(
             decoration: BoxDecoration(
               color: AppTheme.backgroundColor,
@@ -352,8 +367,7 @@ class _PainLogScreenState extends State<PainLogScreen> {
                 ),
                 filled: true,
                 fillColor: Colors.transparent,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
           ),
@@ -362,7 +376,9 @@ class _PainLogScreenState extends State<PainLogScreen> {
     );
   }
 
-  Widget _buildWeeklyChart(List<Map<String, dynamic>> history) {
+  Widget _buildWeeklyChart(List<PainLogModel> history) {
+    if (history.isEmpty) return const SizedBox.shrink();
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -388,19 +404,17 @@ class _PainLogScreenState extends State<PainLogScreen> {
                     color: AppTheme.textPrimary),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryLight,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Row(
                   children: [
-                    Icon(LucideIcons.trendingDown,
-                        size: 12, color: AppTheme.primaryColor),
+                    Icon(LucideIcons.activity, size: 12, color: AppTheme.primaryColor),
                     SizedBox(width: 4),
                     Text(
-                      '↓ 60% esta semana',
+                      'Últimos registros',
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -427,12 +441,9 @@ class _PainLogScreenState extends State<PainLogScreen> {
                   ),
                 ),
                 titlesData: FlTitlesData(
-                  rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
@@ -441,18 +452,15 @@ class _PainLogScreenState extends State<PainLogScreen> {
                       getTitlesWidget: (value, meta) {
                         final i = value.toInt();
                         if (i >= 0 && i < history.length) {
+                          final dateStr = '${history[i].loggedAt.day}/${history[i].loggedAt.month}';
                           return Padding(
                             padding: const EdgeInsets.only(top: 6),
                             child: Text(
-                              history[i]['date'].split(' ')[0],
+                              dateStr,
                               style: TextStyle(
-                                color: i == _selectedDay
-                                    ? AppTheme.primaryColor
-                                    : AppTheme.textSecondary,
+                                color: i == _selectedDay ? AppTheme.primaryColor : AppTheme.textSecondary,
                                 fontSize: 11,
-                                fontWeight: i == _selectedDay
-                                    ? FontWeight.w800
-                                    : FontWeight.w600,
+                                fontWeight: i == _selectedDay ? FontWeight.w800 : FontWeight.w600,
                               ),
                             ),
                           );
@@ -464,13 +472,13 @@ class _PainLogScreenState extends State<PainLogScreen> {
                 ),
                 borderData: FlBorderData(show: false),
                 minX: 0,
-                maxX: 6,
+                maxX: (history.length - 1).toDouble() > 0 ? (history.length - 1).toDouble() : 1.0,
                 minY: 0,
                 maxY: 10,
                 lineBarsData: [
                   LineChartBarData(
                     spots: history.asMap().entries.map((e) {
-                      return FlSpot(e.key.toDouble(), e.value['pain'] as double);
+                      return FlSpot(e.key.toDouble(), e.value.painLevel.toDouble());
                     }).toList(),
                     isCurved: true,
                     curveSmoothness: 0.35,
@@ -479,12 +487,9 @@ class _PainLogScreenState extends State<PainLogScreen> {
                     isStrokeCapRound: true,
                     dotData: FlDotData(
                       show: true,
-                      getDotPainter: (spot, _, __, ___) =>
-                          FlDotCirclePainter(
+                      getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
                         radius: spot.x.toInt() == _selectedDay ? 6 : 3,
-                        color: spot.x.toInt() == _selectedDay
-                            ? AppTheme.primaryColor
-                            : Colors.white,
+                        color: spot.x.toInt() == _selectedDay ? AppTheme.primaryColor : Colors.white,
                         strokeWidth: 2,
                         strokeColor: AppTheme.primaryColor,
                       ),
@@ -510,7 +515,9 @@ class _PainLogScreenState extends State<PainLogScreen> {
     );
   }
 
-  Widget _buildDaySelector(List<Map<String, dynamic>> history) {
+  Widget _buildDaySelector(List<PainLogModel> history) {
+    if (history.isEmpty) return const SizedBox.shrink();
+    
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -518,13 +525,13 @@ class _PainLogScreenState extends State<PainLogScreen> {
           final i = entry.key;
           final day = entry.value;
           final isSelected = i == _selectedDay;
+          final dateStr = '${day.loggedAt.day}/${day.loggedAt.month}';
           return GestureDetector(
             onTap: () => setState(() => _selectedDay = i),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               margin: const EdgeInsets.only(right: 8),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: isSelected ? AppTheme.primaryColor : Colors.white,
                 borderRadius: BorderRadius.circular(14),
@@ -538,24 +545,20 @@ class _PainLogScreenState extends State<PainLogScreen> {
               child: Column(
                 children: [
                   Text(
-                    day['date'].split(' ')[0],
+                    dateStr,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: isSelected
-                          ? Colors.white
-                          : AppTheme.textSecondary,
+                      color: isSelected ? Colors.white : AppTheme.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${(day['pain'] as double).toInt()}',
+                    '${day.painLevel}',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      color: isSelected
-                          ? Colors.white
-                          : AppTheme.textPrimary,
+                      color: isSelected ? Colors.white : AppTheme.textPrimary,
                     ),
                   ),
                 ],
@@ -567,8 +570,12 @@ class _PainLogScreenState extends State<PainLogScreen> {
     );
   }
 
-  Widget _buildSelectedDayNote(List<Map<String, dynamic>> history) {
+  Widget _buildSelectedDayNote(List<PainLogModel> history) {
+    if (history.isEmpty || _selectedDay >= history.length) return const SizedBox.shrink();
     final day = history[_selectedDay];
+    
+    final note = day.notes?.isNotEmpty == true ? day.notes! : 'Sin notas registradas para este día.';
+    
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -583,13 +590,12 @@ class _PainLogScreenState extends State<PainLogScreen> {
       ),
       child: Row(
         children: [
-          const Icon(LucideIcons.messageSquare,
-              size: 16, color: AppTheme.textSecondary),
+          const Icon(LucideIcons.messageSquare, size: 16, color: AppTheme.textSecondary),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '"${day['note']}"',
-              style: TextStyle(
+              '"$note"',
+              style: const TextStyle(
                 fontSize: 14,
                 color: AppTheme.textSecondary,
                 fontStyle: FontStyle.italic,
@@ -602,7 +608,9 @@ class _PainLogScreenState extends State<PainLogScreen> {
     );
   }
 
-  Widget _buildTrendSummary() {
+  Widget _buildTrendSummary(PainStatsModel stats, List<PainLogModel> history) {
+    if (history.isEmpty) return const SizedBox.shrink();
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -620,12 +628,12 @@ class _PainLogScreenState extends State<PainLogScreen> {
         children: [
           const Text('📉', style: TextStyle(fontSize: 36)),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '¡Excelente progreso!',
+                const Text(
+                  'Promedio de dolor',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -633,10 +641,10 @@ class _PainLogScreenState extends State<PainLogScreen> {
                     letterSpacing: -0.3,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'Tu dolor bajó de 5.0 a 2.0 en 7 días. Sigue con tu rutina.',
-                  style: TextStyle(
+                  'Tu dolor promedio es de ${stats.averagePain.toStringAsFixed(1)}. Has registrado ${stats.logCount} veces.',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
@@ -651,9 +659,8 @@ class _PainLogScreenState extends State<PainLogScreen> {
     );
   }
 
-  String _getDayName() {
+  String _getDayName(int weekday) {
     const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-    final weekday = DateTime.now().weekday - 1;
-    return days[weekday.clamp(0, 6)];
+    return days[(weekday - 1).clamp(0, 6)];
   }
 }

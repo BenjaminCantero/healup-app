@@ -12,6 +12,7 @@ import '../providers/injury_provider.dart';
 import '../providers/gamification_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/exercise_provider.dart';
+import '../../data/models/injury_model.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -23,6 +24,10 @@ class HomeScreen extends ConsumerWidget {
     final streakDays = dashStats.value?.streakDays ?? 0;
     final userName = ref.watch(authProvider).value?.user?.fullName.split(' ').first ?? 'Amigo';
     final coachTip = MockData.coachTips[0];
+    final injuries = ref.watch(injuriesProvider).value ?? [];
+    final activeInjury = injuries.where((i) => i.status != 'healed').toList().isNotEmpty
+        ? injuries.firstWhere((i) => i.status != 'healed')
+        : null;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -43,8 +48,14 @@ class HomeScreen extends ConsumerWidget {
 
               // Hero progress card
               BouncingWrapper(
-                onTap: () => context.push('/routine'),
-                child: _buildHeroProgressCard(progressVal),
+                onTap: () {
+                  if (activeInjury != null) {
+                    context.push('/injury_detail', extra: activeInjury);
+                  } else {
+                    context.push('/add_injury');
+                  }
+                },
+                child: _buildHeroProgressCard(progressVal, activeInjury),
               ),
               const SizedBox(height: 24),
 
@@ -338,11 +349,23 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeroProgressCard(double progressVal) {
+  Widget _buildHeroProgressCard(double progressVal, InjuryModel? activeInjury) {
+    final title = activeInjury?.title ?? 'Sin lesión activa';
+    final subtitle = activeInjury != null
+        ? '${activeInjury.phaseLabel} • Día ${_daysSinceInjury(activeInjury.injuryDate)}'
+        : 'Registra tu primera lesión para comenzar';
+    final badge = activeInjury != null ? 'Lesión Activa' : 'Bienvenido';
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: AppTheme.primaryGradient,
+        gradient: activeInjury != null
+            ? AppTheme.primaryGradient
+            : LinearGradient(
+                colors: [AppTheme.textSecondary.withValues(alpha: 0.6), AppTheme.textSecondary.withValues(alpha: 0.3)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
@@ -380,13 +403,13 @@ class HomeScreen extends ConsumerWidget {
                         color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
                           Icon(LucideIcons.activity,
                               color: Colors.white, size: 14),
-                          SizedBox(width: 6),
-                          Text('Lesión Activa',
-                              style: TextStyle(
+                          const SizedBox(width: 6),
+                          Text(badge,
+                              style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600)),
@@ -399,9 +422,9 @@ class HomeScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Rodilla Izquierda',
-                  style: TextStyle(
+                Text(
+                  title,
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
@@ -410,65 +433,76 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Fase Subaguda • Día 12',
+                  subtitle,
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.white.withValues(alpha: 0.8),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Rutina Diaria',
-                        style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600)),
-                    Text(
-                      '${(progressVal * 100).toInt()}%',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800),
+                if (activeInjury != null) ...[
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Rutina Diaria',
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600)),
+                      Text(
+                        '${(progressVal * 100).toInt()}%',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(4),
+                    alignment: Alignment.centerLeft,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 800),
+                          curve: Curves.easeOutCubic,
+                          width: constraints.maxWidth *
+                              (progressVal == 0 ? 0.05 : progressVal),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(4),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                  blurRadius: 8),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                  alignment: Alignment.centerLeft,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 800),
-                        curve: Curves.easeOutCubic,
-                        width: constraints.maxWidth *
-                            (progressVal == 0 ? 0.05 : progressVal),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
-                          boxShadow: [
-                            BoxShadow(
-                                color: Colors.white.withValues(alpha: 0.5),
-                                blurRadius: 8),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                ],
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  int _daysSinceInjury(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      return DateTime.now().difference(date).inDays;
+    } catch (_) {
+      return 0;
+    }
   }
 
   Widget _buildCoachCard(Map<String, String> tip) {

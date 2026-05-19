@@ -14,6 +14,9 @@ import '../../presentation/screens/register_screen.dart';
 import '../../presentation/screens/body_map_screen.dart';
 import '../../presentation/screens/exercise_detail_screen.dart';
 import '../../presentation/screens/pain_log_screen.dart';
+import '../../presentation/screens/injury_detail_screen.dart';
+import '../../presentation/screens/routine_screen.dart';
+import '../../data/models/injury_model.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -109,6 +112,19 @@ class AppRouter {
         path: '/pain_log',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const PainLogScreen(),
+      ),
+      GoRoute(
+        path: '/injury_detail',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final injury = state.extra as InjuryModel;
+          return InjuryDetailScreen(injury: injury);
+        },
+      ),
+      GoRoute(
+        path: '/routine',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const RoutineScreen(),
       ),
     ],
   );

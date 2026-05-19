@@ -1,176 +1,170 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
-import '../widgets/custom_card.dart';
+import '../../data/models/injury_model.dart';
 import '../widgets/bouncing_wrapper.dart';
+import '../providers/injury_provider.dart';
 
-class InjuriesScreen extends ConsumerStatefulWidget {
+class InjuriesScreen extends ConsumerWidget {
   const InjuriesScreen({Key? key}) : super(key: key);
 
   @override
-  ConsumerState<InjuriesScreen> createState() => _InjuriesScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final injuriesAsync = ref.watch(injuriesProvider);
 
-class _InjuriesScreenState extends ConsumerState<InjuriesScreen> {
-  bool stretchCompleted = true;
-  bool iceCompleted = false;
-  bool medsCompleted = true;
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Detalle de Lesión'),
+        title: const Text('Mis Lesiones'),
         backgroundColor: Colors.transparent,
+        actions: [
+          BouncingWrapper(
+            onTap: () => context.push('/body_map'),
+            child: Container(
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryLight,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(LucideIcons.map,
+                  color: AppTheme.primaryColor, size: 20),
+            ),
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.only(left: 24.0, right: 24.0, top: 16.0, bottom: 120.0), // padding for Glass NavBar
+      body: injuriesAsync.when(
+        data: (injuries) {
+          if (injuries.isEmpty) {
+            return _buildEmptyState(context);
+          }
+          return RefreshIndicator(
+            onRefresh: () => ref.read(injuriesProvider.notifier).refresh(),
+            child: ListView.builder(
+              padding: const EdgeInsets.only(
+                  left: 24, right: 24, top: 16, bottom: 120),
+              itemCount: injuries.length + 1,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      '${injuries.length} lesión${injuries.length > 1 ? 'es' : ''} registrada${injuries.length > 1 ? 's' : ''}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  );
+                }
+                final injury = injuries[index - 1];
+                return _buildInjuryCard(context, injury);
+              },
+            ),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(LucideIcons.frown,
+                  size: 48, color: AppTheme.textSecondary),
+              const SizedBox(height: 16),
+              const Text('Error al cargar lesiones',
+                  style: TextStyle(color: AppTheme.textSecondary)),
+              const SizedBox(height: 8),
+              BouncingWrapper(
+                onTap: () => ref.invalidate(injuriesProvider),
+                child: const Text('Reintentar',
+                    style: TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/add_injury'),
+        backgroundColor: AppTheme.primaryColor,
+        icon: const Icon(LucideIcons.plus, color: Colors.white),
+        label: const Text('Nueva Lesión',
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CustomCard(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryLight,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: const Icon(LucideIcons.activitySquare, color: AppTheme.primaryColor, size: 28),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Rodilla Izquierda',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.textPrimary,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Esguince LCL • Día 7',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryLight,
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: const Icon(LucideIcons.heartPulse,
+                  size: 48, color: AppTheme.primaryColor),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'No tienes lesiones registradas',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Las lesiones que registres aparecerán aquí.\nUsa el botón "Nueva Lesión" o el mapa corporal.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w500,
+                height: 1.5,
               ),
             ),
             const SizedBox(height: 32),
-            const Text(
-              'Fase de Recuperación',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, letterSpacing: -0.5),
-            ),
-            const SizedBox(height: 16),
-            CustomCard(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Progreso Estimado',
-                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryLight,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text('50%', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.w800, fontSize: 13)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    height: 140,
-                    child: LineChart(
-                      LineChartData(
-                        gridData: FlGridData(show: false),
-                        titlesData: FlTitlesData(show: false),
-                        borderData: FlBorderData(show: false),
-                        lineBarsData: [
-                          LineChartBarData(
-                            spots: const [
-                              FlSpot(0, 3.5),
-                              FlSpot(1, 3.8),
-                              FlSpot(2, 4.2),
-                              FlSpot(3, 4.5),
-                              FlSpot(4, 5.0),
-                              FlSpot(5, 5.5),
-                              FlSpot(6, 6.0),
-                            ],
-                            isCurved: true,
-                            curveSmoothness: 0.35,
-                            color: AppTheme.primaryColor,
-                            barWidth: 4,
-                            isStrokeCapRound: true,
-                            dotData: const FlDotData(show: false),
-                            belowBarData: BarAreaData(
-                              show: true,
-                              gradient: LinearGradient(
-                                colors: [AppTheme.primaryColor.withValues(alpha: 0.3), AppTheme.primaryColor.withValues(alpha: 0.0)],
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                              ),
-                            ),
-                          ),
-                        ],
-                        minY: 0,
+            BouncingWrapper(
+              onTap: () => context.push('/body_map'),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryLight,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.2)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(LucideIcons.map,
+                        color: AppTheme.primaryColor, size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      'Explorar Mapa Corporal',
+                      style: TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 32),
-            const Text(
-              'Hábitos Diarios',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, letterSpacing: -0.5),
-            ),
-            const SizedBox(height: 16),
-            _buildHabitTile(
-              title: 'Estiramientos',
-              subtitle: '2 sesiones diarias',
-              icon: LucideIcons.move,
-              isCompleted: stretchCompleted,
-              onTap: () => setState(() => stretchCompleted = !stretchCompleted),
-            ),
-            const SizedBox(height: 12),
-            _buildHabitTile(
-              title: 'Aplicar Hielo',
-              subtitle: '15 min cada 4 hrs',
-              icon: LucideIcons.thermometerSnowflake,
-              isCompleted: iceCompleted,
-              onTap: () => setState(() => iceCompleted = !iceCompleted),
-            ),
-            const SizedBox(height: 12),
-            _buildHabitTile(
-              title: 'Medicamentos',
-              subtitle: 'Ibuprofeno 400mg',
-              icon: LucideIcons.pill,
-              isCompleted: medsCompleted,
-              onTap: () => setState(() => medsCompleted = !medsCompleted),
             ),
           ],
         ),
@@ -178,76 +172,185 @@ class _InjuriesScreenState extends ConsumerState<InjuriesScreen> {
     );
   }
 
-  Widget _buildHabitTile({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required bool isCompleted,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildInjuryCard(BuildContext context, InjuryModel injury) {
+    final days = _daysSince(injury.injuryDate);
+    final severityColor = _severityColor(injury.severity);
+
     return BouncingWrapper(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      onTap: () => context.push('/injury_detail', extra: injury),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isCompleted ? AppTheme.primaryLight : Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isCompleted ? AppTheme.primaryColor.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.02),
-            width: isCompleted ? 2 : 1.5,
-          ),
-          boxShadow: [
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [
             BoxShadow(
-              color: isCompleted ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.03),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
+              color: Color(0x0D000000),
+              blurRadius: 12,
+              offset: Offset(0, 4),
             ),
           ],
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
-                color: isCompleted ? AppTheme.primaryColor : AppTheme.backgroundColor,
-                shape: BoxShape.circle,
+                color: severityColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(icon, color: isCompleted ? Colors.white : AppTheme.textSecondary, size: 20),
+              child: _injuryIcon(injury.bodyPartSlug),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 300),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: isCompleted ? AppTheme.primaryColor : AppTheme.textPrimary,
-                    ),
-                    child: Text(title),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          injury.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: severityColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          injury.severityLabel,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: severityColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(fontSize: 13, color: isCompleted ? AppTheme.primaryColor.withValues(alpha: 0.8) : AppTheme.textSecondary, fontWeight: FontWeight.w500),
+                  Row(
+                    children: [
+                      if (injury.bodyPartName != null) ...[
+                        Text(
+                          injury.bodyPartName!,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 3,
+                          height: 3,
+                          decoration: const BoxDecoration(
+                              color: AppTheme.textSecondary,
+                              shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        'Día $days',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: injury.status == 'healed'
+                              ? const Color(0xFF2EC4B6).withValues(alpha: 0.1)
+                              : AppTheme.primaryLight,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          injury.statusLabel,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: injury.status == 'healed'
+                                ? const Color(0xFF2EC4B6)
+                                : AppTheme.primaryColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
-              child: isCompleted
-                  ? const Icon(LucideIcons.checkCircle2, color: AppTheme.primaryColor, size: 28, key: ValueKey('checked'))
-                  : Icon(LucideIcons.circle, color: AppTheme.textSecondary.withValues(alpha: 0.3), size: 28, key: const ValueKey('unchecked')),
-            ),
+            const SizedBox(width: 8),
+            const Icon(LucideIcons.chevronRight,
+                size: 18, color: AppTheme.textSecondary),
           ],
         ),
       ),
     );
+  }
+
+  Widget _injuryIcon(String? bodyPartSlug) {
+    const icons = {
+      'head': '🤕',
+      'neck': '🧣',
+      'left-shoulder': '💪',
+      'right-shoulder': '💪',
+      'left-elbow': '🦾',
+      'right-elbow': '🦾',
+      'left-wrist': '🖐️',
+      'right-wrist': '🖐️',
+      'chest': '🫀',
+      'upper-back': '🔙',
+      'lower-back': '🔙',
+      'abdomen': '🫃',
+      'left-hip': '🦵',
+      'right-hip': '🦵',
+      'left-knee': '🦵',
+      'right-knee': '🦵',
+      'left-ankle': '🦶',
+      'right-ankle': '🦶',
+      'left-foot': '🦶',
+      'right-foot': '🦶',
+    };
+    return Center(
+      child: Text(
+        icons[bodyPartSlug] ?? '🤕',
+        style: const TextStyle(fontSize: 24),
+      ),
+    );
+  }
+
+  int _daysSince(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      return DateTime.now().difference(date).inDays;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Color _severityColor(String severity) {
+    switch (severity) {
+      case 'mild':
+        return const Color(0xFF2EC4B6);
+      case 'severe':
+        return const Color(0xFFFF6B6B);
+      default:
+        return AppTheme.primaryColor;
+    }
   }
 }
