@@ -52,4 +52,19 @@ class AuthRepository {
       throw ApiException.fromDioError(e);
     }
   }
+
+  Future<String> uploadAvatar(String filePath) async {
+    try {
+      final formData = FormData.fromMap({
+        'avatar': await MultipartFile.fromFile(filePath),
+      });
+      final res = await _dio.post(
+        ApiConstants.profileAvatar,
+        data: formData,
+      );
+      return res.data['data']['avatarUrl'] as String;
+    } on DioException catch (e) {
+      throw ApiException.fromDioError(e);
+    }
+  }
 }

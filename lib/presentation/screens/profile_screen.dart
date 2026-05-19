@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/mock_data.dart';
@@ -27,7 +28,7 @@ class ProfileScreen extends ConsumerWidget {
         slivers: [
           // Hero header
           SliverToBoxAdapter(
-            child: _buildHeroHeader(context, user),
+            child: _buildHeroHeader(context, ref, user, dashStats?.userLevel),
           ),
           // Stats
           SliverToBoxAdapter(
@@ -72,7 +73,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeroHeader(BuildContext context, UserModel? user) {
+  Widget _buildHeroHeader(BuildContext context, WidgetRef ref, UserModel? user, String? userLevel) {
     return Container(
       decoration: const BoxDecoration(
         gradient: AppTheme.primaryGradient,
@@ -120,35 +121,67 @@ class ProfileScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           // Avatar
-          Stack(
-            alignment: Alignment.bottomRight,
-            children: [
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.5), width: 3),
-                  image: const DecorationImage(
-                    image: NetworkImage(MockData.userAvatar),
-                    fit: BoxFit.cover,
+          BouncingWrapper(
+            onTap: () => _pickAndUploadAvatar(context, ref),
+            child: Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.5), width: 3),
+                    gradient: user?.profile?.avatarUrl == null
+                        ? const LinearGradient(
+                            colors: [Color(0xFF20A090), Color(0xFF007A65)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : null,
+                    image: user?.profile?.avatarUrl != null
+                        ? DecorationImage(
+                            image: NetworkImage(user!.profile!.avatarUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: user?.profile?.avatarUrl == null
+                      ? Center(
+                          child: Text(
+                            user?.fullName
+                                    .split(' ')
+                                    .where((e) => e.isNotEmpty)
+                                    .map((e) => e[0])
+                                    .take(2)
+                                    .join('')
+                                    .toUpperCase() ??
+                                'U',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        )
+                      : null,
+                ),
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(LucideIcons.pencil,
+                        size: 14, color: AppTheme.primaryColor),
                   ),
                 ),
-              ),
-              Container(
-                width: 28,
-                height: 28,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(LucideIcons.pencil,
-                      size: 14, color: AppTheme.primaryColor),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -186,7 +219,7 @@ class ProfileScreen extends ConsumerWidget {
                 const Text('🏆', style: TextStyle(fontSize: 16)),
                 const SizedBox(width: 8),
                 Text(
-                  MockData.userLevel,
+                  userLevel ?? 'Iniciante',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 13,
@@ -291,10 +324,14 @@ class ProfileScreen extends ConsumerWidget {
     }
     return Column(
       children: injuries.map((injury) {
-        final progress = injury.phase == 'functional' ? 0.8 : (injury.phase == 'subacute' ? 0.5 : 0.2);
         final isRecovered = injury.status == 'healed';
+        final progress = isRecovered
+            ? 1.0
+            : (injury.phase == 'functional'
+                ? 0.8
+                : (injury.phase == 'subacute' ? 0.5 : 0.2));
         return BouncingWrapper(
-          onTap: () {},
+          onTap: () => context.push('/injury_detail', extra: injury),
           child: Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(16),
@@ -527,5 +564,55 @@ class ProfileScreen extends ConsumerWidget {
         );
       }).toList(),
     );
+  }
+
+  Future<void> _pickAndUploadAvatar(BuildContext context, WidgetRef ref) async {
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (image == null) return;
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text('Subiendo nueva foto de perfil...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      await ref.read(authProvider.notifier).updateAvatar(image.path);
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('¡Foto de perfil actualizada!'),
+          backgroundColor: AppTheme.primaryColor,
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al subir avatar: $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
   }
 }

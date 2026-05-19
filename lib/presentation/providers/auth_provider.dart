@@ -69,6 +69,33 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       state = const AsyncData(AuthState(isAuthenticated: false));
     }
   }
+
+  Future<void> updateAvatar(String filePath) async {
+    final current = state.value;
+    if (current == null || current.user == null) return;
+
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final avatarUrl = await _repo.uploadAvatar(filePath);
+      final updatedProfile = UserProfileModel(
+        avatarUrl: avatarUrl,
+        dateOfBirth: current.user!.profile?.dateOfBirth,
+        gender: current.user!.profile?.gender,
+        heightCm: current.user!.profile?.heightCm,
+        weightKg: current.user!.profile?.weightKg,
+        medicalNotes: current.user!.profile?.medicalNotes,
+      );
+      final updatedUser = UserModel(
+        id: current.user!.id,
+        email: current.user!.email,
+        fullName: current.user!.fullName,
+        role: current.user!.role,
+        isActive: current.user!.isActive,
+        profile: updatedProfile,
+      );
+      return AuthState(user: updatedUser, isAuthenticated: true);
+    });
+  }
 }
 
 final authProvider =
