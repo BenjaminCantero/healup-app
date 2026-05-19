@@ -1,48 +1,137 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/pain_slider.dart';
 import '../widgets/custom_card.dart';
 import '../providers/injury_provider.dart';
+import '../../data/models/injury_model.dart';
 
 class AddInjuryScreen extends ConsumerStatefulWidget {
-  const AddInjuryScreen({Key? key}) : super(key: key);
+  final String? bodyPartSlug;
+  const AddInjuryScreen({Key? key, this.bodyPartSlug}) : super(key: key);
 
   @override
   ConsumerState<AddInjuryScreen> createState() => _AddInjuryScreenState();
 }
 
 class _AddInjuryScreenState extends ConsumerState<AddInjuryScreen> {
+  final _titleController = TextEditingController(text: 'Nueva Lesión');
+  final _descriptionController = TextEditingController();
   double localPainLevel = 5.0;
+  String _severity = 'moderate';
+  String _phase = 'acute';
+  BodyPartModel? _selectedBodyPart;
+  DateTime _selectedDate = DateTime.now();
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
 
   void _saveInjury() async {
-    await ref.read(injuriesProvider.notifier).createInjury({
-      'title': 'Nueva Lesión',
+    if (_titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, escribe un título.')),
+      );
+      return;
+    }
+
+    final dto = {
+      'title': _titleController.text.trim(),
+      'description': _descriptionController.text.trim(),
+      'severity': _severity,
+      'phase': _phase,
       'painLevel': localPainLevel.toInt(),
-      'severity': 'moderate',
-    });
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('¡Lesión guardada!', style: TextStyle(fontWeight: FontWeight.w600)),
-        backgroundColor: AppTheme.primaryColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.only(bottom: 80, left: 24, right: 24),
-      ),
+      'injuryDate': _selectedDate.toIso8601String().split('T')[0],
+      if (_selectedBodyPart != null) 'bodyPartId': _selectedBodyPart!.id,
+    };
+
+    try {
+      await ref.read(injuriesProvider.notifier).createInjury(dto);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('¡Lesión guardada!', style: TextStyle(fontWeight: FontWeight.w600)),
+          backgroundColor: AppTheme.primaryColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.only(bottom: 80, left: 24, right: 24),
+        ),
+      );
+      context.pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al guardar lesión: $e')),
+      );
+    }
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppTheme.primaryColor,
+              onPrimary: Colors.white,
+              onSurface: AppTheme.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
-    Navigator.pop(context);
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final bodyPartsAsync = ref.watch(bodyPartsProvider);
+
+    bodyPartsAsync.whenData((parts) {
+      if (_selectedBodyPart == null && parts.isNotEmpty) {
+        if (widget.bodyPartSlug != null) {
+          _selectedBodyPart = parts.firstWhere(
+            (p) => p.slug == widget.bodyPartSlug,
+            orElse: () => parts.first,
+          );
+        } else {
+          _selectedBodyPart = parts.first;
+        }
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: const Text('Completar Lesión'),
+        title: const Text('Registrar Lesión'),
+        leading: GestureDetector(
+          onTap: () => context.pop(),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(LucideIcons.arrowLeft,
+                color: AppTheme.textPrimary, size: 20),
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -60,20 +149,99 @@ class _AddInjuryScreenState extends ConsumerState<AddInjuryScreen> {
             ),
             const SizedBox(height: 12),
             CustomCard(
-              padding: EdgeInsets.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Column(
                 children: [
-                  _buildFormRow('Tipo de lesión', 'Rodilla'),
-                  _buildDivider(),
-                  _buildFormRow('Fecha del Incidente', '13 abr 2024'),
-                  _buildDivider(),
-                  _buildFormRow('Severidad', 'Media', showChevron: false),
+                  TextField(
+                    controller: _titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre de la lesión',
+                      hintText: 'Ej. Esguince de tobillo',
+                      border: UnderlineInputBorder(),
+                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción / Notas (Opcional)',
+                      hintText: 'Ej. Sentí un tirón fuerte al correr.',
+                      border: UnderlineInputBorder(),
+                    ),
+                    maxLines: 2,
+                    style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary),
+                  ),
+                  const SizedBox(height: 20),
+                  bodyPartsAsync.when(
+                    data: (parts) {
+                      return DropdownButtonFormField<BodyPartModel>(
+                        value: _selectedBodyPart,
+                        decoration: const InputDecoration(labelText: 'Parte del Cuerpo'),
+                        items: parts.map((part) {
+                          return DropdownMenuItem<BodyPartModel>(
+                            value: part,
+                            child: Text(part.name),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedBodyPart = val;
+                          });
+                        },
+                      );
+                    },
+                    loading: () => const CircularProgressIndicator(),
+                    error: (_, __) => const Text('Error al cargar partes del cuerpo'),
+                  ),
+                  const SizedBox(height: 20),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Fecha del Incidente', style: TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text('${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}'),
+                    trailing: const Icon(LucideIcons.calendar),
+                    onTap: () => _selectDate(context),
+                  ),
+                  const Divider(),
+                  DropdownButtonFormField<String>(
+                    value: _severity,
+                    decoration: const InputDecoration(labelText: 'Severidad'),
+                    items: const [
+                      DropdownMenuItem(value: 'mild', child: Text('Leve')),
+                      DropdownMenuItem(value: 'moderate', child: Text('Media')),
+                      DropdownMenuItem(value: 'severe', child: Text('Severa')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _severity = val;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  DropdownButtonFormField<String>(
+                    value: _phase,
+                    decoration: const InputDecoration(labelText: 'Fase de Recuperación'),
+                    items: const [
+                      DropdownMenuItem(value: 'acute', child: Text('Aguda')),
+                      DropdownMenuItem(value: 'subacute', child: Text('Subaguda')),
+                      DropdownMenuItem(value: 'functional', child: Text('Funcional')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _phase = val;
+                        });
+                      }
+                    },
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 32),
             const Text(
-              'Nivel de Dolor Actual',
+              'Nivel de Dolor Inicial',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -137,53 +305,6 @@ class _AddInjuryScreenState extends ConsumerState<AddInjuryScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildFormRow(String title, String value, {bool showChevron = true}) {
-    return InkWell(
-      onTap: () {},
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            Row(
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: AppTheme.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (showChevron) ...[
-                  const SizedBox(width: 8),
-                  const Icon(LucideIcons.chevronRight, color: AppTheme.textSecondary, size: 20),
-                ]
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDivider() {
-    return Divider(
-      height: 1,
-      thickness: 1,
-      color: Colors.black.withValues(alpha: 0.05),
-      indent: 20,
     );
   }
 }

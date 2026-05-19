@@ -128,7 +128,8 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
             GestureDetector(
               onTap: () {
                 Navigator.pop(ctx);
-                context.push('/add_injury');
+                final slug = _getSlugForUiId(_selectedPart!);
+                context.push('/add_injury?slug=$slug');
               },
               child: Container(
                 width: double.infinity,

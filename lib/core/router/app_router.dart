@@ -88,7 +88,10 @@ class AppRouter {
       GoRoute(
         path: '/add_injury',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const AddInjuryScreen(),
+        builder: (context, state) {
+          final slug = state.uri.queryParameters['slug'];
+          return AddInjuryScreen(bodyPartSlug: slug);
+        },
       ),
       GoRoute(
         path: '/achievements',
