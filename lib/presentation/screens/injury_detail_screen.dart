@@ -49,33 +49,50 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
           children: [
             _buildInjuryHeader(injury, days),
             const SizedBox(height: 32),
-            const Text(
-              'Fase de Recuperación',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.textPrimary,
-                  letterSpacing: -0.5),
-            ),
+            _buildSectionTitle('Fase de Recuperación'),
             const SizedBox(height: 16),
             _buildRecoveryChart(injury, days),
+
+            if (injury.symptoms.isNotEmpty) ...[
+              const SizedBox(height: 32),
+              _buildSectionTitle('Síntomas Reportados'),
+              const SizedBox(height: 12),
+              ...injury.symptoms.map((s) => _buildBulletPoint(s)).toList(),
+            ],
+
+            if (injury.recommendations.isNotEmpty) ...[
+              const SizedBox(height: 32),
+              _buildSectionTitle('Recomendaciones de Recuperación'),
+              const SizedBox(height: 12),
+              ...injury.recommendations.map((r) => _buildBulletPoint(r)).toList(),
+            ],
+
+            if (injury.importantNote != null && injury.importantNote!.isNotEmpty) ...[
+              const SizedBox(height: 32),
+              _buildInfoAlert('Nota Importante', injury.importantNote!, LucideIcons.alertCircle, AppTheme.primaryColor),
+            ],
+
+            if (injury.whenToSeeSpecialist != null && injury.whenToSeeSpecialist!.isNotEmpty) ...[
+              const SizedBox(height: 32),
+              _buildInfoAlert('Cuándo ver a un especialista', injury.whenToSeeSpecialist!, LucideIcons.stethoscope, const Color(0xFFFF6B6B)),
+            ],
+
+            if (injury.recommendedExercises.isNotEmpty) ...[
+              const SizedBox(height: 32),
+              _buildSectionTitle('Ejercicios Recomendados'),
+              const SizedBox(height: 16),
+              // We could iterate over exercises here
+            ],
+
             const SizedBox(height: 32),
-            const Text(
-              'Hábitos Diarios',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.textPrimary,
-                  letterSpacing: -0.5),
-            ),
+            _buildSectionTitle('Hábitos Diarios'),
             const SizedBox(height: 16),
             _buildHabitTile(
               title: 'Estiramientos',
               subtitle: '2 sesiones diarias',
               icon: LucideIcons.move,
               isCompleted: stretchCompleted,
-              onTap: () =>
-                  setState(() => stretchCompleted = !stretchCompleted),
+              onTap: () => setState(() => stretchCompleted = !stretchCompleted),
             ),
             const SizedBox(height: 12),
             _buildHabitTile(
@@ -340,5 +357,85 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
       default:
         return LucideIcons.activitySquare;
     }
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w800,
+        color: AppTheme.textPrimary,
+        letterSpacing: -0.5,
+      ),
+    );
+  }
+
+  Widget _buildBulletPoint(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 6.0, right: 12.0),
+            child: Icon(LucideIcons.circle, size: 8, color: AppTheme.primaryColor),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 15,
+                height: 1.5,
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoAlert(String title, String content, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            content,
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.5,
+              color: AppTheme.textPrimary.withValues(alpha: 0.8),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -1,3 +1,5 @@
+import 'exercise_model.dart';
+
 class InjuryModel {
   final String id;
   final String title;
@@ -10,6 +12,13 @@ class InjuryModel {
   final String status;  // active | recovering | healed
   final String injuryDate;
   final String? imageUrl;
+  
+  // Extra fields for detailed view
+  final List<String> symptoms;
+  final List<String> recommendations;
+  final String? whenToSeeSpecialist;
+  final String? importantNote;
+  final List<ExerciseModel> recommendedExercises;
 
   const InjuryModel({
     required this.id,
@@ -23,6 +32,11 @@ class InjuryModel {
     required this.status,
     required this.injuryDate,
     this.imageUrl,
+    this.symptoms = const [],
+    this.recommendations = const [],
+    this.whenToSeeSpecialist,
+    this.importantNote,
+    this.recommendedExercises = const [],
   });
 
   factory InjuryModel.fromJson(Map<String, dynamic> json) => InjuryModel(
@@ -37,6 +51,13 @@ class InjuryModel {
         status: json['status'] as String? ?? 'active',
         injuryDate: json['injuryDate'] as String,
         imageUrl: json['imageUrl'] as String?,
+        symptoms: (json['symptoms'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+        recommendations: (json['recommendations'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+        whenToSeeSpecialist: json['whenToSeeSpecialist'] as String?,
+        importantNote: json['importantNote'] as String?,
+        recommendedExercises: (json['recommendedExercises'] as List<dynamic>?)
+            ?.map((e) => ExerciseModel.fromJson(e as Map<String, dynamic>))
+            .toList() ?? [],
       );
 
   Map<String, dynamic> toJson() => {
@@ -46,6 +67,10 @@ class InjuryModel {
         'severity': severity,
         'phase': phase,
         'injuryDate': injuryDate,
+        'symptoms': symptoms,
+        'recommendations': recommendations,
+        'whenToSeeSpecialist': whenToSeeSpecialist,
+        'importantNote': importantNote,
       };
 
   /// Convenience — mapa con los mismos colores/iconos usados en MockData

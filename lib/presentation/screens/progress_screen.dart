@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../widgets/custom_card.dart';
 import '../providers/gamification_provider.dart';
 import '../providers/routine_provider.dart';
+import '../providers/pain_log_provider.dart';
 
 class ProgressScreen extends ConsumerWidget {
   const ProgressScreen({Key? key}) : super(key: key);
@@ -123,10 +124,17 @@ class ProgressScreen extends ConsumerWidget {
                         style: TextStyle(fontSize: 13, color: AppTheme.textSecondary, fontWeight: FontWeight.w500),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
-                        '7 days',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
-                      ),
+                      ref.watch(dashboardStatsProvider).when(
+                            data: (stats) => Text(
+                              '${stats.totalDaysActive} days',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                            ),
+                            loading: () => const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2)),
+                            error: (_, __) => const Text('Error', style: TextStyle(color: Colors.red)),
+                          ),
                     ],
                   ),
                 ],
@@ -209,81 +217,98 @@ class ProgressScreen extends ConsumerWidget {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary, letterSpacing: -0.5),
             ),
             const SizedBox(height: 16),
-            CustomCard(
-              padding: const EdgeInsets.all(24),
-              child: SizedBox(
-                height: 180,
-                child: LineChart(
-                  LineChartData(
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: false,
-                      drawHorizontalLine: true,
-                      horizontalInterval: 1,
-                      getDrawingHorizontalLine: (value) => FlLine(
-                        color: AppTheme.textSecondary.withValues(alpha: 0.1), 
-                        strokeWidth: 1,
-                        dashArray: [4, 4],
-                      ),
-                    ),
-                    titlesData: FlTitlesData(
-                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 22,
-                          interval: 1,
-                          getTitlesWidget: (value, meta) {
-                            const days = ['J', 'V', 'S', 'D', 'L', 'M', 'X'];
-                            if (value.toInt() >= 0 && value.toInt() < days.length) {
-                              return Padding(
-                                padding: const EdgeInsets.only(top: 8.0),
-                                child: Text(days[value.toInt()], style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          },
-                        ),
-                      ),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    minX: 0,
-                    maxX: 6,
-                    minY: 3,
-                    maxY: 7,
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: [
-                          const FlSpot(0, 3.2),
-                          const FlSpot(1, 4.0),
-                          const FlSpot(2, 4.8),
-                          const FlSpot(3, 5.0),
-                          const FlSpot(4, 5.6),
-                          const FlSpot(5, 6.2),
-                          FlSpot(6, 6.0 + (progressVal * 0.8)),
-                        ],
-                        isCurved: true,
-                        curveSmoothness: 0.35,
-                        color: AppTheme.primaryColor,
-                        barWidth: 4,
-                        isStrokeCapRound: true,
-                        dotData: const FlDotData(show: false),
-                        belowBarData: BarAreaData(
-                          show: true,
-                          gradient: LinearGradient(
-                            colors: [AppTheme.primaryColor.withValues(alpha: 0.3), AppTheme.primaryColor.withValues(alpha: 0.0)],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
+            ref.watch(painLogsProvider).when(
+                  data: (logs) {
+                    final recentLogs = logs.take(7).toList().reversed.toList();
+                    final spots = recentLogs.asMap().entries.map((e) {
+                      // Invert pain: lower pain = higher progress (0-10 scale)
+                      final progressScore = 10 - e.value.painLevel.toDouble();
+                      return FlSpot(e.key.toDouble(), progressScore);
+                    }).toList();
+
+                    if (spots.isEmpty) {
+                      // Fallback if no logs
+                      spots.add(const FlSpot(0, 5));
+                    }
+
+                    return CustomCard(
+                      padding: const EdgeInsets.all(24),
+                      child: SizedBox(
+                        height: 180,
+                        child: LineChart(
+                          LineChartData(
+                            gridData: FlGridData(
+                              show: true,
+                              drawVerticalLine: false,
+                              drawHorizontalLine: true,
+                              horizontalInterval: 2,
+                              getDrawingHorizontalLine: (value) => FlLine(
+                                color: AppTheme.textSecondary.withValues(alpha: 0.1),
+                                strokeWidth: 1,
+                                dashArray: [4, 4],
+                              ),
+                            ),
+                            titlesData: FlTitlesData(
+                              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 22,
+                                  interval: 1,
+                                  getTitlesWidget: (value, meta) {
+                                    final i = value.toInt();
+                                    if (i >= 0 && i < recentLogs.length) {
+                                      final dateStr = '${recentLogs[i].loggedAt.day}/${recentLogs[i].loggedAt.month}';
+                                      return Padding(
+                                        padding: const EdgeInsets.only(top: 8.0),
+                                        child: Text(dateStr, style: TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
+                                      );
+                                    }
+                                    return const SizedBox.shrink();
+                                  },
+                                ),
+                              ),
+                            ),
+                            borderData: FlBorderData(show: false),
+                            minX: 0,
+                            maxX: (spots.length - 1).toDouble() > 0 ? (spots.length - 1).toDouble() : 1.0,
+                            minY: 0,
+                            maxY: 10,
+                            lineBarsData: [
+                              LineChartBarData(
+                                spots: spots,
+                                isCurved: true,
+                                curveSmoothness: 0.35,
+                                color: AppTheme.primaryColor,
+                                barWidth: 4,
+                                isStrokeCapRound: true,
+                                dotData: const FlDotData(show: false),
+                                belowBarData: BarAreaData(
+                                  show: true,
+                                  gradient: LinearGradient(
+                                    colors: [AppTheme.primaryColor.withValues(alpha: 0.3), AppTheme.primaryColor.withValues(alpha: 0.0)],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ],
+                    );
+                  },
+                  loading: () => const CustomCard(
+                    padding: EdgeInsets.all(40),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                  error: (e, _) => CustomCard(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(child: Text('Error: $e')),
                   ),
                 ),
-              ),
-            ),
             const SizedBox(height: 120), // Padding to clear Glass NavBar
           ],
         ),
