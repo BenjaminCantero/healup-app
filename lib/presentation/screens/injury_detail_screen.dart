@@ -6,6 +6,8 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/injury_model.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/bouncing_wrapper.dart';
+import '../providers/routine_provider.dart';
+import '../../data/models/exercise_model.dart';
 
 class InjuryDetailScreen extends ConsumerStatefulWidget {
   final InjuryModel injury;
@@ -20,6 +22,8 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
   bool stretchCompleted = true;
   bool iceCompleted = false;
   bool medsCompleted = true;
+  
+  final Map<String, bool> tempCompletedExercises = {};
 
   int get _daysSinceInjury {
     try {
@@ -77,12 +81,8 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
               _buildInfoAlert('Cuándo ver a un especialista', injury.whenToSeeSpecialist!, LucideIcons.stethoscope, const Color(0xFFFF6B6B)),
             ],
 
-            if (injury.recommendedExercises.isNotEmpty) ...[
-              const SizedBox(height: 32),
-              _buildSectionTitle('Ejercicios Recomendados'),
-              const SizedBox(height: 16),
-              // We could iterate over exercises here
-            ],
+            const SizedBox(height: 32),
+            _buildRoutineSection(context, ref, injury.id),
 
             const SizedBox(height: 32),
             _buildSectionTitle('Hábitos Diarios'),
@@ -432,6 +432,259 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
               height: 1.5,
               color: AppTheme.textPrimary.withValues(alpha: 0.8),
               fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoutineSection(BuildContext context, WidgetRef ref, String injuryId) {
+    final routinesAsync = ref.watch(routineByInjuryProvider(injuryId));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Tu Plan de Rehabilitación'),
+        const SizedBox(height: 16),
+        routinesAsync.when(
+          data: (routine) {
+            if (routine == null) return _buildEmptyRoutineState();
+            return _buildActiveRoutineView(context, ref, routine);
+          },
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32.0),
+              child: CircularProgressIndicator(color: AppTheme.primaryColor),
+            ),
+          ),
+          error: (err, stack) => CustomCard(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: Text(
+                'Error al cargar tu rutina.\nRevisa tu conexión.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyRoutineState() {
+    return CustomCard(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(LucideIcons.activity, color: AppTheme.primaryColor, size: 32),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Aún no tienes rutina',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Asigna o genera una rutina personalizada para iniciar tu recuperación estructurada.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 24),
+          BouncingWrapper(
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Generador de rutinas con IA (Próximamente)')),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Text(
+                'Generar Plan de Recuperación',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveRoutineView(BuildContext context, WidgetRef ref, RoutineModel routine) {
+    return CustomCard(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      routine.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${routine.frequencyPerWeek} días a la semana',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${tempCompletedExercises.values.where((v) => v).length} / ${routine.exercises.length}',
+                  style: const TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          ...routine.exercises.map((ex) {
+            final isCompleted = tempCompletedExercises[ex.id] ?? false;
+            return BouncingWrapper(
+              onTap: () {
+                setState(() {
+                  tempCompletedExercises[ex.id] = !isCompleted;
+                });
+              },
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isCompleted
+                      ? AppTheme.primaryColor.withValues(alpha: 0.05)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isCompleted
+                        ? AppTheme.primaryColor.withValues(alpha: 0.3)
+                        : AppTheme.textSecondary.withValues(alpha: 0.1),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: isCompleted 
+                            ? AppTheme.primaryColor 
+                            : AppTheme.backgroundColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        LucideIcons.check,
+                        color: isCompleted ? Colors.white : AppTheme.textSecondary.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            ex.exerciseTitle ?? 'Ejercicio',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary,
+                              decoration: isCompleted ? TextDecoration.lineThrough : null,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${ex.customSets ?? 3} series x ${ex.customReps ?? 12} reps',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                // Post to /sessions -> Update UI Optimistically -> Show Confetti
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('+150 XP • ¡Sesión completada!'),
+                    backgroundColor: AppTheme.primaryColor,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Finalizar Sesión',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ],
