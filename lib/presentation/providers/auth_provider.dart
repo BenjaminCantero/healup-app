@@ -96,6 +96,17 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       return AuthState(user: updatedUser, isAuthenticated: true);
     });
   }
+
+  Future<void> updateProfile(Map<String, dynamic> data) async {
+    final current = state.value;
+    if (current == null || current.user == null) return;
+
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final updatedUser = await _repo.updateProfile(data);
+      return AuthState(user: updatedUser, isAuthenticated: true);
+    });
+  }
 }
 
 final authProvider =

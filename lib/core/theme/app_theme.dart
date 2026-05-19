@@ -17,12 +17,13 @@ class AppTheme {
 
   static final ThemeData lightTheme = ThemeData(
     useMaterial3: true,
+    scaffoldBackgroundColor: backgroundColor,
     colorScheme: ColorScheme.fromSeed(
       seedColor: primaryColor,
+      primary: primaryColor,
       surface: backgroundColor,
       error: errorColor,
     ),
-    scaffoldBackgroundColor: backgroundColor,
     textTheme: GoogleFonts.plusJakartaSansTextTheme().apply(
       bodyColor: textPrimary,
       displayColor: textPrimary,
@@ -35,7 +36,8 @@ class AppTheme {
       titleTextStyle: GoogleFonts.plusJakartaSans(
         color: textPrimary,
         fontSize: 18,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.5,
       ),
     ),
     cardTheme: CardThemeData(
@@ -44,6 +46,10 @@ class AppTheme {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(32),
       ),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
     ),
   );
 }

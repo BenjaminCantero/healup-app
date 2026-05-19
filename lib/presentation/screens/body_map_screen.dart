@@ -29,6 +29,7 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useRootNavigator: true,
       builder: (ctx) => Container(
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -285,7 +286,7 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
         const SizedBox(height: 8),
         // Shoulders
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _buildBodyZone(
                 'shoulder_left',
@@ -293,7 +294,6 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
                 'Hombro Izq.',
                 parts.firstWhere(
                     (p) => p['id'] == 'shoulder_left')['commonInjuries'], activeInjuries),
-            const SizedBox(width: 48),
             _buildBodyZone(
                 'shoulder_right',
                 '💪',
@@ -305,7 +305,7 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
         const SizedBox(height: 8),
         // Elbows
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _buildBodyZone(
                 'elbow_left',
@@ -313,7 +313,6 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
                 'Codo Izq.',
                 parts.firstWhere(
                     (p) => p['id'] == 'elbow_left')['commonInjuries'], activeInjuries),
-            const SizedBox(width: 80),
             _buildBodyZone(
                 'elbow_right',
                 '🦾',
@@ -336,7 +335,7 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
         const SizedBox(height: 8),
         // Knees
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _buildBodyZone(
                 'knee_left',
@@ -344,7 +343,6 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
                 'Rodilla Izq.',
                 parts.firstWhere(
                     (p) => p['id'] == 'knee_left')['commonInjuries'], activeInjuries),
-            const SizedBox(width: 48),
             _buildBodyZone(
                 'knee_right',
                 '🦵',
@@ -356,7 +354,7 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
         const SizedBox(height: 8),
         // Ankles
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _buildBodyZone(
                 'ankle_left',
@@ -364,7 +362,6 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
                 'Tobillo Izq.',
                 parts.firstWhere(
                     (p) => p['id'] == 'ankle_left')['commonInjuries'], activeInjuries),
-            const SizedBox(width: 48),
             _buildBodyZone(
                 'ankle_right',
                 '🦶',
@@ -386,7 +383,7 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
             parts.firstWhere((p) => p['id'] == 'head')['commonInjuries'], activeInjuries),
         const SizedBox(height: 8),
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _buildBodyZone(
                 'shoulder_left',
@@ -394,7 +391,6 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
                 'Hombro Izq.',
                 parts.firstWhere(
                     (p) => p['id'] == 'shoulder_left')['commonInjuries'], activeInjuries),
-            const SizedBox(width: 48),
             _buildBodyZone(
                 'shoulder_right',
                 '💪',
@@ -414,7 +410,7 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
             parts.firstWhere((p) => p['id'] == 'hip')['commonInjuries'], activeInjuries),
         const SizedBox(height: 8),
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _buildBodyZone(
                 'knee_left',
@@ -422,7 +418,6 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
                 'Rodilla Izq.',
                 parts.firstWhere(
                     (p) => p['id'] == 'knee_left')['commonInjuries'], activeInjuries),
-            const SizedBox(width: 48),
             _buildBodyZone(
                 'knee_right',
                 '🦵',
@@ -433,7 +428,7 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
         ),
         const SizedBox(height: 8),
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _buildBodyZone(
                 'ankle_left',
@@ -441,7 +436,6 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
                 'Tobillo Izq.',
                 parts.firstWhere(
                     (p) => p['id'] == 'ankle_left')['commonInjuries'], activeInjuries),
-            const SizedBox(width: 48),
             _buildBodyZone(
                 'ankle_right',
                 '🦶',
@@ -488,7 +482,7 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
           _selectPart(id, name, injuries.map((e) => e.toString()).toList()),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected
               ? AppTheme.primaryLight

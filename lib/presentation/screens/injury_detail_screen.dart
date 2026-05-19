@@ -19,9 +19,7 @@ class InjuryDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
-  bool stretchCompleted = true;
-  bool iceCompleted = false;
-  bool medsCompleted = true;
+  final Map<String, bool> completedHabits = {};
   
   final Map<String, bool> tempCompletedExercises = {};
 
@@ -31,6 +29,43 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
       return DateTime.now().difference(date).inDays;
     } catch (_) {
       return 0;
+    }
+  }
+
+  List<Map<String, dynamic>> _getDynamicHabits(InjuryModel injury) {
+    final slug = injury.bodyPartSlug ?? '';
+    final title = injury.title.toLowerCase();
+
+    if (slug.contains('shoulder') || title.contains('hombro')) {
+      return [
+        {'id': 'h1', 'title': 'Estiramiento Péndulo', 'subtitle': '2 series de 10 reps', 'icon': LucideIcons.move},
+        {'id': 'h2', 'title': 'Compresa Contraste', 'subtitle': 'Alternar frío/calor 15 min', 'icon': LucideIcons.thermometerSnowflake},
+        {'id': 'h3', 'title': 'Postura Erguida', 'subtitle': 'Mantener hombros atrás', 'icon': LucideIcons.accessibility},
+      ];
+    } else if (slug.contains('knee') || title.contains('rodilla')) {
+      return [
+        {'id': 'h1', 'title': 'Elevación de Pierna', 'subtitle': '15 min en reposo', 'icon': LucideIcons.arrowUp},
+        {'id': 'h2', 'title': 'Isometría Ligera', 'subtitle': 'Contracción sin peso', 'icon': LucideIcons.activity},
+        {'id': 'h3', 'title': 'Crioterapia', 'subtitle': 'Hielo tras caminar', 'icon': LucideIcons.thermometerSnowflake},
+      ];
+    } else if (slug.contains('back') || title.contains('espalda')) {
+      return [
+        {'id': 'h1', 'title': 'Gato-Camello', 'subtitle': 'Estiramiento suave', 'icon': LucideIcons.move},
+        {'id': 'h2', 'title': 'Calor Local', 'subtitle': 'Para relajar espasmos', 'icon': LucideIcons.flame},
+        {'id': 'h3', 'title': 'Pausas Activas', 'subtitle': 'Caminar 5 min cada hr', 'icon': LucideIcons.timer},
+      ];
+    } else if (slug.contains('ankle') || title.contains('tobillo')) {
+      return [
+        {'id': 'h1', 'title': 'Movilidad Circular', 'subtitle': 'Rotar suavemente', 'icon': LucideIcons.rotateCcw},
+        {'id': 'h2', 'title': 'Elevación', 'subtitle': 'Por encima del corazón', 'icon': LucideIcons.arrowUp},
+        {'id': 'h3', 'title': 'Compresa Fría', 'subtitle': '10 min para desinflamar', 'icon': LucideIcons.thermometerSnowflake},
+      ];
+    } else {
+      return [
+        {'id': 'h1', 'title': 'Movilidad Suave', 'subtitle': '10 min diarios', 'icon': LucideIcons.move},
+        {'id': 'h2', 'title': 'Aplicar Hielo', 'subtitle': '15 min en zona afectada', 'icon': LucideIcons.thermometerSnowflake},
+        {'id': 'h3', 'title': 'Descanso Activo', 'subtitle': 'Evitar esfuerzos intensos', 'icon': LucideIcons.batteryCharging},
+      ];
     }
   }
 
@@ -87,29 +122,23 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
             const SizedBox(height: 32),
             _buildSectionTitle('Hábitos Diarios'),
             const SizedBox(height: 16),
-            _buildHabitTile(
-              title: 'Estiramientos',
-              subtitle: '2 sesiones diarias',
-              icon: LucideIcons.move,
-              isCompleted: stretchCompleted,
-              onTap: () => setState(() => stretchCompleted = !stretchCompleted),
-            ),
-            const SizedBox(height: 12),
-            _buildHabitTile(
-              title: 'Aplicar Hielo',
-              subtitle: '15 min cada 4 hrs',
-              icon: LucideIcons.thermometerSnowflake,
-              isCompleted: iceCompleted,
-              onTap: () => setState(() => iceCompleted = !iceCompleted),
-            ),
-            const SizedBox(height: 12),
-            _buildHabitTile(
-              title: 'Medicamentos',
-              subtitle: 'Ibuprofeno 400mg',
-              icon: LucideIcons.pill,
-              isCompleted: medsCompleted,
-              onTap: () => setState(() => medsCompleted = !medsCompleted),
-            ),
+            ..._getDynamicHabits(injury).map((habit) {
+              final hId = habit['id'] as String;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildHabitTile(
+                  title: habit['title'] as String,
+                  subtitle: habit['subtitle'] as String,
+                  icon: habit['icon'] as IconData,
+                  isCompleted: completedHabits[hId] ?? false,
+                  onTap: () {
+                    setState(() {
+                      completedHabits[hId] = !(completedHabits[hId] ?? false);
+                    });
+                  },
+                ),
+              );
+            }).toList(),
           ],
         ),
       ),

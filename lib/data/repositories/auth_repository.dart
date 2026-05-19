@@ -67,4 +67,16 @@ class AuthRepository {
       throw ApiException.fromDioError(e);
     }
   }
+
+  Future<UserModel> updateProfile(Map<String, dynamic> data) async {
+    try {
+      final res = await _dio.put(
+        ApiConstants.profile,
+        data: data,
+      );
+      return UserModel.fromJson(res.data['data'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioError(e);
+    }
+  }
 }

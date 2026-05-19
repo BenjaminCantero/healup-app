@@ -544,6 +544,19 @@ class ProfileScreen extends ConsumerWidget {
                           if (isDestructive) {
                             ref.read(authProvider.notifier).logout();
                             context.go('/login');
+                          } else if (item['label'] == 'Información personal') {
+                            final user = ref.read(authProvider).value?.user;
+                            if (user != null) {
+                              _showEditProfileSheet(context, user);
+                            }
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('${item['label']} - Próximamente disponible'),
+                                backgroundColor: AppTheme.primaryColor,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
                           }
                         },
                       ),
@@ -614,5 +627,195 @@ class ProfileScreen extends ConsumerWidget {
         ),
       );
     }
+  }
+
+  void _showEditProfileSheet(BuildContext context, UserModel user) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _EditProfileSheet(user: user),
+    );
+  }
+}
+
+class _EditProfileSheet extends ConsumerStatefulWidget {
+  final UserModel user;
+  const _EditProfileSheet({required this.user});
+
+  @override
+  ConsumerState<_EditProfileSheet> createState() => _EditProfileSheetState();
+}
+
+class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
+  late TextEditingController _nameController;
+  late TextEditingController _heightController;
+  late TextEditingController _weightController;
+  String _gender = 'prefer_not_to_say';
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.user.fullName);
+    _heightController = TextEditingController(text: widget.user.profile?.heightCm?.toString() ?? '');
+    _weightController = TextEditingController(text: widget.user.profile?.weightKg?.toString() ?? '');
+    if (widget.user.profile?.gender != null) {
+      _gender = widget.user.profile!.gender!;
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _heightController.dispose();
+    _weightController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _isLoading = true);
+    try {
+      final Map<String, dynamic> data = {
+        'fullName': _nameController.text.trim(),
+        'gender': _gender,
+      };
+      if (_heightController.text.isNotEmpty) {
+        data['heightCm'] = double.tryParse(_heightController.text) ?? 0;
+      }
+      if (_weightController.text.isNotEmpty) {
+        data['weightKg'] = double.tryParse(_weightController.text) ?? 0;
+      }
+      
+      await ref.read(authProvider.notifier).updateProfile(data);
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('¡Perfil actualizado con éxito!'), backgroundColor: AppTheme.primaryColor),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.errorColor),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + 24,
+        top: 24,
+        left: 24,
+        right: 24,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.textSecondary.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Información Personal',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.textPrimary,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 24),
+          _buildTextField('Nombre Completo', _nameController, LucideIcons.user),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: _buildTextField('Altura (cm)', _heightController, LucideIcons.ruler, isNumber: true)),
+              const SizedBox(width: 16),
+              Expanded(child: _buildTextField('Peso (kg)', _weightController, LucideIcons.scale, isNumber: true)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text('Género', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _gender,
+                isExpanded: true,
+                items: const [
+                  DropdownMenuItem(value: 'male', child: Text('Masculino')),
+                  DropdownMenuItem(value: 'female', child: Text('Femenino')),
+                  DropdownMenuItem(value: 'other', child: Text('Otro')),
+                  DropdownMenuItem(value: 'prefer_not_to_say', child: Text('Prefiero no decirlo')),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _gender = v);
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _save,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                elevation: 0,
+              ),
+              child: _isLoading
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Guardar Cambios', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {bool isNumber = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, color: AppTheme.textSecondary, size: 20),
+            filled: true,
+            fillColor: AppTheme.backgroundColor,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
+        ),
+      ],
+    );
   }
 }
