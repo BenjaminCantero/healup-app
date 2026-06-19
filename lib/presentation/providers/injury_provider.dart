@@ -4,8 +4,9 @@ import '../../data/repositories/injury_repository.dart';
 import '../../core/network/api_exception.dart';
 
 // ─── Repository Provider ──────────────────────────────────────────────────────
-final injuryRepositoryProvider =
-    Provider<InjuryRepository>((_) => InjuryRepository());
+final injuryRepositoryProvider = Provider<InjuryRepository>(
+  (_) => InjuryRepository(),
+);
 
 // ─── Injuries List ────────────────────────────────────────────────────────────
 class InjuryNotifier extends AsyncNotifier<List<InjuryModel>> {
@@ -36,19 +37,17 @@ class InjuryNotifier extends AsyncNotifier<List<InjuryModel>> {
 
   Future<void> deleteInjury(String id) async {
     await _repo.deleteInjury(id);
-    state = AsyncData(
-      state.value?.where((i) => i.id != id).toList() ?? [],
-    );
+    state = AsyncData(state.value?.where((i) => i.id != id).toList() ?? []);
   }
 }
 
 final injuriesProvider =
     AsyncNotifierProvider<InjuryNotifier, List<InjuryModel>>(
-        InjuryNotifier.new);
+      InjuryNotifier.new,
+    );
 
 // ─── Body Parts (se cachean en el provider) ────────────────────────────────────
-final bodyPartsProvider =
-    FutureProvider<List<BodyPartModel>>((ref) async {
+final bodyPartsProvider = FutureProvider<List<BodyPartModel>>((ref) async {
   final repo = ref.read(injuryRepositoryProvider);
   try {
     return await repo.getBodyParts();
@@ -73,4 +72,12 @@ final selectedInjuryProvider = Provider<InjuryModel?>((ref) {
   final injuries = ref.watch(injuriesProvider).value ?? [];
   if (id == null || injuries.isEmpty) return null;
   return injuries.firstWhere((i) => i.id == id, orElse: () => injuries.first);
+});
+
+final activeInjuryProvider = Provider<InjuryModel?>((ref) {
+  final injuries = ref.watch(injuriesProvider).value ?? [];
+  final activeInjuries = injuries
+      .where((injury) => injury.status != 'healed')
+      .toList();
+  return activeInjuries.isNotEmpty ? activeInjuries.first : null;
 });

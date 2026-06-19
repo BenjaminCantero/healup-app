@@ -27,16 +27,28 @@ class HomeScreen extends ConsumerWidget {
     final dashStats = ref.watch(dashboardStatsProvider);
     final streakDays = dashStats.value?.streakDays ?? 0;
     const coachTips = [
-      {'title': '¡Buen ritmo!', 'message': 'El descanso también es parte de la recuperación — asegúrate de dormir 8 horas.', 'icon': '🧠'},
-      {'title': 'Hidratación clave', 'message': 'Beber al menos 2L de agua hoy acelera la recuperación de tejidos.', 'icon': '💧'},
-      {'title': 'Reducción notable', 'message': 'Mantén la constancia con tus ejercicios diarios. ¡Cada día cuenta!', 'icon': '📉'},
+      {
+        'title': '¡Buen ritmo!',
+        'message':
+            'El descanso también es parte de la recuperación — asegúrate de dormir 8 horas.',
+        'icon': '🧠',
+      },
+      {
+        'title': 'Hidratación clave',
+        'message':
+            'Beber al menos 2L de agua hoy acelera la recuperación de tejidos.',
+        'icon': '💧',
+      },
+      {
+        'title': 'Reducción notable',
+        'message':
+            'Mantén la constancia con tus ejercicios diarios. ¡Cada día cuenta!',
+        'icon': '📉',
+      },
     ];
     final coachTip = coachTips[DateTime.now().day % coachTips.length];
 
-    final injuries = ref.watch(injuriesProvider).value ?? [];
-    final activeInjury = injuries.where((i) => i.status != 'healed').toList().isNotEmpty
-        ? injuries.firstWhere((i) => i.status != 'healed')
-        : null;
+    final activeInjury = ref.watch(activeInjuryProvider);
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -44,7 +56,11 @@ class HomeScreen extends ConsumerWidget {
         bottom: false,
         child: SingleChildScrollView(
           padding: const EdgeInsets.only(
-              left: 24.0, right: 24.0, top: 16.0, bottom: 120.0),
+            left: 24.0,
+            right: 24.0,
+            top: 16.0,
+            bottom: 120.0,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -64,7 +80,10 @@ class HomeScreen extends ConsumerWidget {
                     context.push('/add_injury');
                   }
                 },
-                child: HeroProgressCard(progressVal: progressVal, activeInjury: activeInjury),
+                child: HeroProgressCard(
+                  progressVal: progressVal,
+                  activeInjury: activeInjury,
+                ),
               ),
               const SizedBox(height: 24),
 
@@ -89,7 +108,9 @@ class HomeScreen extends ConsumerWidget {
                     onTap: () => context.push('/pain_log'),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.primaryLight,
                         borderRadius: BorderRadius.circular(12),
@@ -136,7 +157,9 @@ class HomeScreen extends ConsumerWidget {
                     onTap: () => context.push('/routine'),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.primaryLight,
                         borderRadius: BorderRadius.circular(12),

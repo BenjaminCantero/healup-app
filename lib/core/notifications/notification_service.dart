@@ -33,8 +33,9 @@ class NotificationService {
 
     tz.initializeTimeZones();
 
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const darwinSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -137,11 +138,10 @@ class NotificationService {
       '¡Hora de tu rutina! 💪',
       'Recuerda completar tus ejercicios de rehabilitación hoy.',
       scheduledDate,
-      const NotificationDetails(
-        android: androidDetails,
-        iOS: darwinDetails,
-      ),
+      const NotificationDetails(android: androidDetails, iOS: darwinDetails),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time, // repeat daily
     );
   }
@@ -169,8 +169,7 @@ class NotificationPrefsState {
       );
 }
 
-class NotificationPrefsNotifier
-    extends AsyncNotifier<NotificationPrefsState> {
+class NotificationPrefsNotifier extends AsyncNotifier<NotificationPrefsState> {
   @override
   Future<NotificationPrefsState> build() async {
     final svc = NotificationService.instance;
@@ -200,7 +199,9 @@ class NotificationPrefsNotifier
     if (current == null) return;
     if (current.enabled) {
       await NotificationService.instance.enableDailyReminder(
-          hour: hour, minute: minute);
+        hour: hour,
+        minute: minute,
+      );
     } else {
       // Just save the preference without scheduling
       final prefs = await SharedPreferences.getInstance();
@@ -211,7 +212,7 @@ class NotificationPrefsNotifier
   }
 }
 
-final notificationPrefsProvider = AsyncNotifierProvider<
-    NotificationPrefsNotifier, NotificationPrefsState>(
-  NotificationPrefsNotifier.new,
-);
+final notificationPrefsProvider =
+    AsyncNotifierProvider<NotificationPrefsNotifier, NotificationPrefsState>(
+      NotificationPrefsNotifier.new,
+    );
