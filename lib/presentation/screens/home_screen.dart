@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/constants/mock_data.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/bouncing_wrapper.dart';
 import '../providers/routine_provider.dart';
@@ -21,11 +20,19 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider).value;
+    final userName = authState?.user?.fullName.split(' ').first ?? 'Amigo';
+    final avatarUrl = authState?.user?.profile?.avatarUrl;
     final progressVal = ref.watch(routineProgressProvider);
     final dashStats = ref.watch(dashboardStatsProvider);
     final streakDays = dashStats.value?.streakDays ?? 0;
-    final userName = ref.watch(authProvider).value?.user?.fullName.split(' ').first ?? 'Amigo';
-    final coachTip = MockData.coachTips[0];
+    const coachTips = [
+      {'title': '¡Buen ritmo!', 'message': 'El descanso también es parte de la recuperación — asegúrate de dormir 8 horas.', 'icon': '🧠'},
+      {'title': 'Hidratación clave', 'message': 'Beber al menos 2L de agua hoy acelera la recuperación de tejidos.', 'icon': '💧'},
+      {'title': 'Reducción notable', 'message': 'Mantén la constancia con tus ejercicios diarios. ¡Cada día cuenta!', 'icon': '📉'},
+    ];
+    final coachTip = coachTips[DateTime.now().day % coachTips.length];
+
     final injuries = ref.watch(injuriesProvider).value ?? [];
     final activeInjury = injuries.where((i) => i.status != 'healed').toList().isNotEmpty
         ? injuries.firstWhere((i) => i.status != 'healed')
@@ -41,7 +48,7 @@ class HomeScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              HomeModernHeader(userName: userName),
+              HomeModernHeader(userName: userName, avatarUrl: avatarUrl),
               const SizedBox(height: 24),
 
               // Streak + Quick actions row

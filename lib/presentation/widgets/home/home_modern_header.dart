@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/constants/mock_data.dart';
 import '../bouncing_wrapper.dart';
 
 class HomeModernHeader extends StatelessWidget {
   final String userName;
+  final String? avatarUrl;
 
-  const HomeModernHeader({Key? key, required this.userName}) : super(key: key);
+  const HomeModernHeader({
+    Key? key,
+    required this.userName,
+    this.avatarUrl,
+  }) : super(key: key);
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -69,7 +73,7 @@ class HomeModernHeader extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             BouncingWrapper(
-              onTap: () {},
+              onTap: () => context.push('/profile'),
               child: Container(
                 width: 48,
                 height: 48,
@@ -78,11 +82,32 @@ class HomeModernHeader extends StatelessWidget {
                   border: Border.all(
                       color: AppTheme.primaryColor.withValues(alpha: 0.2),
                       width: 2),
-                  image: const DecorationImage(
-                    image: NetworkImage(MockData.userAvatar),
-                    fit: BoxFit.cover,
-                  ),
+                  gradient: avatarUrl == null
+                      ? const LinearGradient(
+                          colors: [Color(0xFF20A090), Color(0xFF007A65)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
+                  image: avatarUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(avatarUrl!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
                 ),
+                child: avatarUrl == null
+                    ? Center(
+                        child: Text(
+                          userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      )
+                    : null,
               ),
             ),
           ],

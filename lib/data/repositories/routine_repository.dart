@@ -26,4 +26,15 @@ class RoutineRepository {
       throw ApiException.fromDioError(e);
     }
   }
+
+  /// Genera (o devuelve, si ya existe) una rutina de rehabilitación para la
+  /// lesión, eligiendo ejercicios según la zona del cuerpo afectada.
+  Future<RoutineModel> generateForInjury(String injuryId) async {
+    try {
+      final res = await _dio.post(ApiConstants.routineGenerate(injuryId));
+      return RoutineModel.fromJson(res.data['data'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioError(e);
+    }
+  }
 }

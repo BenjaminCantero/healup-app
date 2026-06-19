@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/constants/mock_data.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/bouncing_wrapper.dart';
 import '../providers/auth_provider.dart';
@@ -14,17 +13,31 @@ import '../../data/models/user_model.dart';
 import '../../data/models/gamification_model.dart';
 import '../../data/models/injury_model.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(authProvider).value?.user;
     final dashStats = ref.watch(dashboardStatsProvider).value;
     final injuries = ref.watch(injuriesProvider).value ?? [];
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
           // Hero header
           SliverToBoxAdapter(
@@ -104,7 +117,13 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  _scrollController.animateTo(
+                    _scrollController.position.maxScrollExtent,
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeInOut,
+                  );
+                },
                 child: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(

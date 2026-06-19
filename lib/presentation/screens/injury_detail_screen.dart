@@ -7,7 +7,10 @@ import '../../data/models/injury_model.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/bouncing_wrapper.dart';
 import '../providers/routine_provider.dart';
+import '../providers/session_provider.dart';
+import '../providers/gamification_provider.dart';
 import '../../data/models/exercise_model.dart';
+import '../../core/network/api_exception.dart';
 
 class InjuryDetailScreen extends ConsumerStatefulWidget {
   final InjuryModel injury;
@@ -20,8 +23,12 @@ class InjuryDetailScreen extends ConsumerStatefulWidget {
 
 class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
   final Map<String, bool> completedHabits = {};
-  
+
   final Map<String, bool> tempCompletedExercises = {};
+
+  bool _submittingSession = false;
+
+  bool _generatingRoutine = false;
 
   int get _daysSinceInjury {
     try {
@@ -478,7 +485,7 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
         const SizedBox(height: 16),
         routinesAsync.when(
           data: (routine) {
-            if (routine == null) return _buildEmptyRoutineState();
+            if (routine == null) return _buildEmptyRoutineState(injuryId);
             return _buildActiveRoutineView(context, ref, routine);
           },
           loading: () => const Center(
@@ -502,7 +509,7 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
     );
   }
 
-  Widget _buildEmptyRoutineState() {
+  Widget _buildEmptyRoutineState(String injuryId) {
     return CustomCard(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -526,7 +533,7 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Asigna o genera una rutina personalizada para iniciar tu recuperación estructurada.',
+            'Genera una rutina personalizada según tu lesión para iniciar tu recuperación estructurada.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppTheme.textSecondary,
@@ -536,11 +543,7 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
           ),
           const SizedBox(height: 24),
           BouncingWrapper(
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Generador de rutinas con IA (Próximamente)')),
-              );
-            },
+            onTap: () => _generateRoutine(injuryId),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               decoration: BoxDecoration(
@@ -554,18 +557,124 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
                   ),
                 ],
               ),
-              child: const Text(
-                'Generar Plan de Recuperación',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: _generatingRoutine
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Generar Plan de Recuperación',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// Genera la rutina en el backend (POST /routines/by-injury/:id/generate)
+  /// y recarga la sección de rutina para mostrarla.
+  Future<void> _generateRoutine(String injuryId) async {
+    if (_generatingRoutine) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _generatingRoutine = true);
+
+    try {
+      await ref.read(routineRepositoryProvider).generateForInjury(injuryId);
+      if (!mounted) return;
+
+      // Recargar la rutina por lesión para que la sección muestre el plan.
+      ref.invalidate(routineByInjuryProvider(injuryId));
+
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('¡Plan de recuperación generado!'),
+          backgroundColor: AppTheme.primaryColor,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e is ApiException ? e.message : 'Revisa tu conexión.';
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('No se pudo generar la rutina: $msg'),
+          backgroundColor: const Color(0xFFFF6B6B),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _generatingRoutine = false);
+    }
+  }
+
+  /// Registra la sesión en el backend (POST /sessions) con los ejercicios
+  /// marcados como completados, y refresca XP/nivel/logros.
+  Future<void> _finishSession(BuildContext context, RoutineModel routine) async {
+    if (_submittingSession) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+
+    final completed = routine.exercises
+        .where((ex) => tempCompletedExercises[ex.id] ?? false)
+        .toList();
+
+    if (completed.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Marca al menos un ejercicio para registrar la sesión.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _submittingSession = true);
+
+    try {
+      await ref.read(sessionRepositoryProvider).createSession(
+            routineId: routine.id,
+            exercises: completed
+                .map((ex) => <String, dynamic>{
+                      'exerciseId': ex.exerciseId,
+                      'setsCompleted': ex.customSets ?? 3,
+                      'repsCompleted': ex.customReps ?? 12,
+                    })
+                .toList(),
+          );
+
+      if (!mounted) return;
+
+      // Refrescar estadísticas (XP, nivel) y logros recién desbloqueados.
+      ref.read(dashboardStatsProvider.notifier).refresh();
+      ref.read(achievementsProvider.notifier).refresh();
+
+      setState(() => tempCompletedExercises.clear());
+
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('¡Sesión registrada! Sigue así 💪'),
+          backgroundColor: AppTheme.primaryColor,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e is ApiException ? e.message : 'Revisa tu conexión.';
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('No se pudo registrar la sesión: $msg'),
+          backgroundColor: const Color(0xFFFF6B6B),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submittingSession = false);
+    }
   }
 
   Widget _buildActiveRoutineView(BuildContext context, WidgetRef ref, RoutineModel routine) {
@@ -689,31 +798,36 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                // Post to /sessions -> Update UI Optimistically -> Show Confetti
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('+150 XP • ¡Sesión completada!'),
-                    backgroundColor: AppTheme.primaryColor,
-                  ),
-                );
-              },
+              onPressed:
+                  _submittingSession ? null : () => _finishSession(context, routine),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
+                disabledBackgroundColor:
+                    AppTheme.primaryColor.withValues(alpha: 0.5),
+                disabledForegroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
                 elevation: 0,
               ),
-              child: const Text(
-                'Finalizar Sesión',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: _submittingSession
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Finalizar Sesión',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
         ],

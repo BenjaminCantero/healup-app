@@ -160,46 +160,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 8),
-          // Google Button
-          _buildSocialButton(
-            icon: LucideIcons.chrome,
-            label: 'Continuar con Google',
-            onTap: _login,
-          ),
-          const SizedBox(height: 12),
-          _buildSocialButton(
-            icon: LucideIcons.apple,
-            label: 'Continuar con Apple',
-            onTap: _login,
-          ),
-          const SizedBox(height: 32),
-          // Divider
-          Row(
-            children: [
-              Expanded(
-                child: Divider(
-                  color: AppTheme.textSecondary.withValues(alpha: 0.2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  'o con email',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Divider(
-                  color: AppTheme.textSecondary.withValues(alpha: 0.2),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
           // Email field
           _buildLabel('Correo electrónico'),
           const SizedBox(height: 8),
@@ -219,8 +179,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           Align(
             alignment: Alignment.centerRight,
             child: GestureDetector(
-              onTap: () {},
-              child: Text(
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Envía un correo a soporte@healup.app para restablecer tu contraseña.',
+                    ),
+                    duration: Duration(seconds: 4),
+                    backgroundColor: AppTheme.primaryColor,
+                  ),
+                );
+              },
+              child: const Text(
                 '¿Olvidaste tu contraseña?',
                 style: TextStyle(
                   color: AppTheme.primaryColor,
@@ -414,49 +384,5 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       ),
     );
   }
-
-  Widget _buildSocialButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.black.withValues(alpha: 0.05),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 20, color: AppTheme.textPrimary),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
-                letterSpacing: -0.3,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
+

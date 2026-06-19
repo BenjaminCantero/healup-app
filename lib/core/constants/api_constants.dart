@@ -48,6 +48,8 @@ class ApiConstants {
   static const String routines = '/routines';
   static String routineById(String id) => '/routines/$id';
   static String routineByInjury(String injuryId) => '/routines/by-injury/$injuryId';
+  static String routineGenerate(String injuryId) =>
+      '/routines/by-injury/$injuryId/generate';
   static String routineExercises(String id) => '/routines/$id/exercises';
   static String routineExercise(String id, String exId) =>
       '/routines/$id/exercises/$exId';
