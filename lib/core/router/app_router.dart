@@ -14,9 +14,11 @@ import '../../presentation/screens/login_screen.dart';
 import '../../presentation/screens/register_screen.dart';
 import '../../presentation/screens/body_map_screen.dart';
 import '../../presentation/screens/exercise_detail_screen.dart';
+import '../../presentation/screens/exercise_catalog_screen.dart';
 import '../../presentation/screens/pain_log_screen.dart';
 import '../../presentation/screens/injury_detail_screen.dart';
 import '../../presentation/screens/routine_screen.dart';
+import '../../presentation/screens/session_history_screen.dart';
 import '../../presentation/providers/auth_provider.dart';
 import '../../data/models/injury_model.dart';
 
@@ -168,6 +170,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/routine',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const RoutineScreen(),
+      ),
+      GoRoute(
+        path: '/exercise_catalog',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const ExerciseCatalogScreen(),
+      ),
+      GoRoute(
+        path: '/session_history',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const SessionHistoryScreen(),
       ),
     ],
   );

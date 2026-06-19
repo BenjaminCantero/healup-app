@@ -82,7 +82,7 @@ class ProgressScreen extends ConsumerWidget {
                             text: '${(progressVal * 100).toInt()}%',
                             style: const TextStyle(fontWeight: FontWeight.w800, color: AppTheme.primaryColor, fontSize: 16),
                           ),
-                          const TextSpan(text: ' de\\nrecuperación total planificada para esta semana.'),
+                          const TextSpan(text: ' de recuperación total planificada para esta semana.'),
                         ],
                       ),
                     ),

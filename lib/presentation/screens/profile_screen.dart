@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/notifications/notification_service.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/bouncing_wrapper.dart';
 import '../providers/auth_provider.dart';
 import '../providers/gamification_provider.dart';
 import '../providers/injury_provider.dart';
+import '../providers/session_provider.dart';
 import '../../data/models/user_model.dart';
 import '../../data/models/gamification_model.dart';
 import '../../data/models/injury_model.dart';
@@ -341,14 +344,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (injuries.isEmpty) {
       return const Center(child: Text('No hay lesiones registradas.'));
     }
+    // Use real session count for progress calculation
+    final sessions = ref.watch(sessionHistoryProvider).value ?? [];
     return Column(
       children: injuries.map((injury) {
         final isRecovered = injury.status == 'healed';
-        final progress = isRecovered
+        // Real progress: sessions completed / routine duration in weeks * frequency
+        // Fallback to phase-based estimate if no sessions yet
+        final injurySessions =
+            sessions.where((s) => s.routineId != null).length;
+        final double progress = isRecovered
             ? 1.0
-            : (injury.phase == 'functional'
-                ? 0.8
-                : (injury.phase == 'subacute' ? 0.5 : 0.2));
+            : injurySessions > 0
+                ? (injurySessions / 18.0).clamp(0.0, 0.95)
+                : (injury.phase == 'functional'
+                    ? 0.8
+                    : (injury.phase == 'subacute' ? 0.5 : 0.2));
         return BouncingWrapper(
           onTap: () => context.push('/injury_detail', extra: injury),
           child: Container(
@@ -472,21 +483,48 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildSettingsSection(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(themeModeProvider).value == ThemeMode.dark;
+    final notifEnabled =
+        ref.watch(notificationPrefsProvider).value?.enabled ?? false;
+
     final groups = [
       {
         'title': 'Cuenta',
         'items': [
           {'icon': LucideIcons.user, 'label': 'Información personal'},
-          {'icon': LucideIcons.bell, 'label': 'Notificaciones'},
+          {
+            'icon': LucideIcons.bell,
+            'label': 'Notificaciones',
+            'toggle': notifEnabled,
+            'onToggle': (bool val) async {
+              if (val) {
+                await NotificationService.instance
+                    .enableDailyReminder(hour: 9);
+              } else {
+                await NotificationService.instance.disableDailyReminder();
+              }
+              ref.invalidate(notificationPrefsProvider);
+            },
+          },
           {'icon': LucideIcons.shield, 'label': 'Privacidad y Seguridad'},
         ],
       },
       {
         'title': 'Preferencias',
         'items': [
-          {'icon': LucideIcons.moon, 'label': 'Modo Oscuro'},
+          {
+            'icon': LucideIcons.moon,
+            'label': 'Modo Oscuro',
+            'toggle': isDark,
+            'onToggle': (bool _) {
+              ref.read(themeModeProvider.notifier).toggle();
+            },
+          },
           {'icon': LucideIcons.globe, 'label': 'Idioma'},
-          {'icon': LucideIcons.heart, 'label': 'Conectar wearable'},
+          {
+            'icon': LucideIcons.history,
+            'label': 'Historial de sesiones',
+          },
         ],
       },
       {
@@ -494,7 +532,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         'items': [
           {'icon': LucideIcons.helpCircle, 'label': 'Centro de ayuda'},
           {'icon': LucideIcons.star, 'label': 'Valorar la app'},
-          {'icon': LucideIcons.logOut, 'label': 'Cerrar sesión', 'isDestructive': true},
+          {
+            'icon': LucideIcons.logOut,
+            'label': 'Cerrar sesión',
+            'isDestructive': true,
+          },
         ],
       },
     ];
@@ -555,10 +597,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             fontSize: 15,
                           ),
                         ),
-                        trailing: isDestructive
-                            ? null
-                            : const Icon(LucideIcons.chevronRight,
-                                color: AppTheme.textSecondary, size: 18),
+                        trailing: item['toggle'] != null
+                            ? Switch(
+                                value: item['toggle'] as bool,
+                                onChanged: item['onToggle'] as Function(bool)?,
+                                activeColor: AppTheme.primaryColor,
+                              )
+                            : isDestructive
+                                ? null
+                                : const Icon(LucideIcons.chevronRight,
+                                    color: AppTheme.textSecondary, size: 18),
                         onTap: () {
                           if (isDestructive) {
                             ref.read(authProvider.notifier).logout();
@@ -568,6 +616,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             if (user != null) {
                               _showEditProfileSheet(context, user);
                             }
+                          } else if (item['label'] == 'Historial de sesiones') {
+                            context.push('/session_history');
+                          } else if (item['label'] == 'Valorar la app') {
+                            launchUrl(
+                              Uri.parse('https://play.google.com/store/apps'),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } else if (item['label'] == 'Centro de ayuda') {
+                            launchUrl(
+                              Uri.parse('mailto:soporte@healup.app'),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } else if (item['toggle'] != null) {
+                            // Toggle-type items are handled by the Switch widget
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
