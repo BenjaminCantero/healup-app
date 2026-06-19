@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/constants/mock_data.dart';
 import '../../core/theme/app_theme.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/progress_bar.dart';
 import '../providers/gamification_provider.dart';
 
 class AchievementsScreen extends ConsumerWidget {
-  const AchievementsScreen({Key? key}) : super(key: key);
+  const AchievementsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -15,7 +14,7 @@ class AchievementsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Achievements'),
+        title: const Text('Logros'),
       ),
       body: achievementsState.when(
         data: (achievements) => GridView.builder(
@@ -41,7 +40,7 @@ class AchievementsScreen extends ConsumerWidget {
                   height: 60,
                   decoration: BoxDecoration(
                     color: isUnlocked
-                        ? AppTheme.primaryLight.withOpacity(0.3)
+                        ? AppTheme.primaryLight.withValues(alpha: 0.3)
                         : AppTheme.backgroundColor,
                     shape: BoxShape.circle,
                   ),
