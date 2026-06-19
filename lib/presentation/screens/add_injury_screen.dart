@@ -11,20 +11,48 @@ import '../../data/models/injury_model.dart';
 
 class AddInjuryScreen extends ConsumerStatefulWidget {
   final String? bodyPartSlug;
-  const AddInjuryScreen({Key? key, this.bodyPartSlug}) : super(key: key);
+  final String? initialTitle;
+  const AddInjuryScreen({Key? key, this.bodyPartSlug, this.initialTitle}) : super(key: key);
 
   @override
   ConsumerState<AddInjuryScreen> createState() => _AddInjuryScreenState();
 }
 
 class _AddInjuryScreenState extends ConsumerState<AddInjuryScreen> {
-  final _titleController = TextEditingController(text: 'Nueva Lesión');
+  late final TextEditingController _titleController;
   final _descriptionController = TextEditingController();
   double localPainLevel = 5.0;
   String _severity = 'moderate';
   String _phase = 'acute';
   BodyPartModel? _selectedBodyPart;
   DateTime _selectedDate = DateTime.now();
+
+  static const Map<String, List<String>> _commonInjuries = {
+    'head': ['Concusión', 'Contractura cervical'],
+    'left-shoulder': ['Tendinitis', 'Luxación', 'Desgarro'],
+    'right-shoulder': ['Tendinitis', 'Luxación', 'Desgarro'],
+    'left-elbow': ['Epicondilitis', 'Bursitis'],
+    'right-elbow': ['Epicondilitis', 'Bursitis'],
+    'left-wrist': ['Esguince', 'Tendinitis', 'Túnel carpiano'],
+    'right-wrist': ['Esguince', 'Tendinitis', 'Túnel carpiano'],
+    'upper-back': ['Contractura', 'Hernia discal'],
+    'lower-back': ['Lumbalgia', 'Hernia discal', 'Ciática'],
+    'hip': ['Bursitis', 'Tendinitis', 'Fractura de estrés'],
+    'left-hip': ['Bursitis', 'Tendinitis', 'Fractura de estrés'],
+    'right-hip': ['Bursitis', 'Tendinitis', 'Fractura de estrés'],
+    'left-knee': ['Esguince LCA', 'Esguince LCL', 'Menisco', 'Condromalacia'],
+    'right-knee': ['Esguince LCA', 'Esguince LCL', 'Menisco', 'Condromalacia'],
+    'left-ankle': ['Esguince Grado I', 'Esguince Grado II', 'Fractura'],
+    'right-ankle': ['Esguince Grado I', 'Esguince Grado II', 'Fractura'],
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(
+      text: widget.initialTitle ?? 'Nueva Lesión',
+    );
+  }
 
   @override
   void dispose() {
@@ -166,6 +194,71 @@ class _AddInjuryScreenState extends ConsumerState<AddInjuryScreen> {
                     ),
                     style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
                   ),
+                  if (_selectedBodyPart != null) ...[
+                    Builder(
+                      builder: (context) {
+                        final slug = _selectedBodyPart!.slug;
+                        final suggestions = _commonInjuries[slug] ?? [];
+                        if (suggestions.isEmpty) return const SizedBox.shrink();
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 10),
+                            const Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Sugerencias comunes para esta zona:',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: suggestions.map((injury) {
+                                  return InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _titleController.text = injury;
+                                      });
+                                    },
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryLight,
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        injury,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   TextField(
                     controller: _descriptionController,

@@ -242,20 +242,7 @@ class _ExerciseCatalogScreenState
                       exercise: exercises[index],
                       onTap: () => context.push(
                         '/exercise_detail',
-                        extra: {
-                          'id': exercises[index].id,
-                          'title': exercises[index].title,
-                          'description': exercises[index].description,
-                          'difficulty': exercises[index].difficulty,
-                          'sets': exercises[index].defaultSets,
-                          'reps': exercises[index].defaultReps,
-                          'durationSeconds':
-                              exercises[index].durationSeconds,
-                          'imageUrl': exercises[index].imageUrl,
-                          'videoUrl': exercises[index].videoUrl,
-                          'targetBodyParts':
-                              exercises[index].targetBodyParts,
-                        },
+                        extra: exercises[index],
                       ),
                     );
                   },

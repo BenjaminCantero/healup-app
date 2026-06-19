@@ -116,29 +116,41 @@ class _BodyMapScreenState extends ConsumerState<BodyMapScreen> {
               ],
             ),
             const SizedBox(height: 20),
-            ...commonInjuries.map(
-              (injury) => Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppTheme.backgroundColor,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(LucideIcons.circle,
-                        size: 8, color: AppTheme.primaryColor),
-                    const SizedBox(width: 12),
-                    Text(
-                      injury,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
+             ...commonInjuries.map(
+              (injury) => GestureDetector(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  final slug = _getSlugForUiId(_selectedPart!);
+                  context.push('/add_injury?slug=$slug&title=$injury');
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.backgroundColor,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.transparent),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.circle,
+                          size: 8, color: AppTheme.primaryColor),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          injury,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                      const Icon(LucideIcons.chevronRight,
+                          size: 16, color: AppTheme.textSecondary),
+                    ],
+                  ),
                 ),
               ),
             ),

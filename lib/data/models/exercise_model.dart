@@ -10,6 +10,7 @@ class ExerciseModel {
   final String? imageUrl;
   final String? videoUrl;
   final List<String> targetBodyParts;
+  final String? instructions;
 
   const ExerciseModel({
     required this.id,
@@ -23,6 +24,7 @@ class ExerciseModel {
     this.imageUrl,
     this.videoUrl,
     required this.targetBodyParts,
+    this.instructions,
   });
 
   factory ExerciseModel.fromJson(Map<String, dynamic> json) => ExerciseModel(
@@ -39,6 +41,7 @@ class ExerciseModel {
         targetBodyParts: (json['targetBodyParts'] as List<dynamic>?)
                 ?.cast<String>() ??
             [],
+        instructions: json['instructions'] as String?,
       );
 
   String get difficultyLabel => switch (difficulty) {

@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
-
+import '../../data/models/exercise_model.dart';
 
 class ExerciseDetailScreen extends ConsumerStatefulWidget {
-  final Map<String, dynamic> exercise;
+  final ExerciseModel exercise;
 
   const ExerciseDetailScreen({Key? key, required this.exercise})
       : super(key: key);
@@ -51,8 +51,56 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
   @override
   Widget build(BuildContext context) {
     final ex = widget.exercise;
-    final steps = List<String>.from(ex['steps'] as List);
-    final diffColor = Color(ex['difficultyColor'] as int);
+    final steps = ex.instructions != null && ex.instructions!.trim().isNotEmpty
+        ? ex.instructions!
+            .split(RegExp(r'\.\s+'))
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .map((s) => s.endsWith('.') ? s.substring(0, s.length - 1) : s)
+            .toList()
+        : [
+            'Realiza el ejercicio controlando la respiración.',
+            'Mantén la postura adecuada durante todo el movimiento.',
+            'Detente inmediatamente si experimentas dolor agudo.',
+          ];
+    final diffColor = switch (ex.difficulty) {
+      'beginner' => const Color(0xFF20A090),
+      'intermediate' => const Color(0xFFFF9800),
+      _ => const Color(0xFFE53935),
+    };
+    final emoji = switch (ex.category.toLowerCase()) {
+      'fortalecimiento' || 'strength' => '💪',
+      'movilidad' || 'mobility' || 'movimiento' => '🔄',
+      'estiramiento' || 'flexibilidad' || 'stretch' || 'flexibility' => '🧘',
+      'cardio suave' || 'cardio' => '🚶',
+      'recuperación' || 'recovery' => '🧊',
+      _ => '💪',
+    };
+    final targetZone = ex.targetBodyParts.isNotEmpty
+        ? ex.targetBodyParts.map((slug) => switch (slug) {
+            'left-shoulder' => 'Hombro Izquierdo',
+            'right-shoulder' => 'Hombro Derecho',
+            'left-knee' => 'Rodilla Izquierda',
+            'right-knee' => 'Rodilla Derecha',
+            'lower-back' => 'Espalda Baja',
+            'neck' => 'Cuello',
+            'left-ankle' => 'Tobillo Izquierdo',
+            'right-ankle' => 'Tobillo Derecho',
+            'left-wrist' => 'Muñeca Izquierda',
+            'right-wrist' => 'Muñeca Derecha',
+            'left-elbow' => 'Codo Izquierdo',
+            'right-elbow' => 'Codo Derecho',
+            'left-hip' => 'Cadera Izquierda',
+            'right-hip' => 'Cadera Derecha',
+            _ => slug,
+          }).join(', ')
+        : 'General';
+    final tips = switch (ex.category.toLowerCase()) {
+      'fortalecimiento' || 'strength' => 'Controla el movimiento en la fase de bajada. Evita usar impulsos.',
+      'estiramiento' || 'flexibilidad' || 'stretch' || 'flexibility' => 'Mantén un estiramiento suave, nunca debes sentir dolor intenso.',
+      'recuperación' || 'recovery' => 'Asegúrate de no aplicar frío o calor directo sobre la piel sin protección.',
+      _ => 'Mantén el core activo y respira de forma controlada.',
+    };
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -127,7 +175,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
                                         Colors.white.withValues(alpha: 0.3)),
                               ),
                               child: Text(
-                                ex['category'] as String,
+                                ex.category,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
@@ -140,13 +188,13 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
                             Row(
                               children: [
                                 Text(
-                                  ex['emoji'] as String,
+                                  emoji,
                                   style: const TextStyle(fontSize: 40),
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Text(
-                                    ex['name'] as String,
+                                    ex.title,
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 26,
@@ -164,13 +212,13 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
                               children: [
                                 _buildStatChip(
                                     LucideIcons.repeat,
-                                    '${ex['sets']} sets'),
+                                    '${ex.defaultSets} series'),
                                 const SizedBox(width: 8),
                                 _buildStatChip(
-                                    LucideIcons.zap, ex['reps'] as String),
+                                    LucideIcons.zap, '${ex.defaultReps} reps'),
                                 const SizedBox(width: 8),
                                 _buildStatChip(LucideIcons.clock,
-                                    ex['duration'] as String),
+                                    ex.durationSeconds != null ? '${(ex.durationSeconds! / 60).ceil()} min' : '5 min'),
                               ],
                             ),
                           ],
@@ -206,7 +254,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
                                 size: 14, color: diffColor),
                             const SizedBox(width: 6),
                             Text(
-                              ex['difficulty'] as String,
+                              ex.difficultyLabel,
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
@@ -234,7 +282,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
                                 color: AppTheme.textSecondary),
                             const SizedBox(width: 6),
                             Text(
-                              ex['targetZone'] as String,
+                              targetZone,
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -350,7 +398,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    ex['description'] as String,
+                    ex.description ?? 'Sin descripción disponible.',
                     style: TextStyle(
                       fontSize: 15,
                       color: AppTheme.textSecondary,
@@ -462,7 +510,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            ex['tips'] as String,
+                            tips,
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,

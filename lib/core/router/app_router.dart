@@ -21,6 +21,8 @@ import '../../presentation/screens/routine_screen.dart';
 import '../../presentation/screens/session_history_screen.dart';
 import '../../presentation/providers/auth_provider.dart';
 import '../../data/models/injury_model.dart';
+import '../../data/models/exercise_model.dart';
+
 
 final GlobalKey<NavigatorState> _rootNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -132,7 +134,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) {
           final slug = state.uri.queryParameters['slug'];
-          return AddInjuryScreen(bodyPartSlug: slug);
+          final title = state.uri.queryParameters['title'];
+          return AddInjuryScreen(bodyPartSlug: slug, initialTitle: title);
         },
       ),
       GoRoute(
@@ -149,7 +152,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/exercise_detail',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) {
-          final exercise = state.extra as Map<String, dynamic>;
+          final exercise = state.extra as ExerciseModel;
           return ExerciseDetailScreen(exercise: exercise);
         },
       ),
