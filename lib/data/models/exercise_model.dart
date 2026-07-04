@@ -94,6 +94,13 @@ class RoutineExerciseModel {
   final String exerciseId;
   final String? exerciseTitle;
   final String? exerciseImageUrl;
+  final String? exerciseDescription;
+  final String? exerciseInstructions;
+  final String? exerciseDifficulty;
+  final int? exerciseDurationSeconds;
+  final String? exerciseVideoUrl;
+  final int? exerciseDefaultSets;
+  final int? exerciseDefaultReps;
   final int orderIndex;
   final int? customSets;
   final int? customReps;
@@ -103,6 +110,13 @@ class RoutineExerciseModel {
     required this.exerciseId,
     this.exerciseTitle,
     this.exerciseImageUrl,
+    this.exerciseDescription,
+    this.exerciseInstructions,
+    this.exerciseDifficulty,
+    this.exerciseDurationSeconds,
+    this.exerciseVideoUrl,
+    this.exerciseDefaultSets,
+    this.exerciseDefaultReps,
     required this.orderIndex,
     this.customSets,
     this.customReps,
@@ -114,8 +128,29 @@ class RoutineExerciseModel {
         exerciseId: json['exerciseId'] as String,
         exerciseTitle: json['exerciseTitle'] as String?,
         exerciseImageUrl: json['exerciseImageUrl'] as String?,
+        exerciseDescription: json['exerciseDescription'] as String?,
+        exerciseInstructions: json['exerciseInstructions'] as String?,
+        exerciseDifficulty: json['exerciseDifficulty'] as String?,
+        exerciseDurationSeconds:
+            (json['exerciseDurationSeconds'] as num?)?.toInt(),
+        exerciseVideoUrl: json['exerciseVideoUrl'] as String?,
+        exerciseDefaultSets: (json['exerciseDefaultSets'] as num?)?.toInt(),
+        exerciseDefaultReps: (json['exerciseDefaultReps'] as num?)?.toInt(),
         orderIndex: (json['orderIndex'] as num?)?.toInt() ?? 0,
         customSets: (json['customSets'] as num?)?.toInt(),
         customReps: (json['customReps'] as num?)?.toInt(),
       );
+
+  /// Sets a mostrar: personalizados si existen, si no los del ejercicio.
+  int get effectiveSets => customSets ?? exerciseDefaultSets ?? 3;
+
+  /// Reps a mostrar: personalizadas si existen, si no las del ejercicio.
+  int get effectiveReps => customReps ?? exerciseDefaultReps ?? 12;
+
+  String get difficultyLabel => switch (exerciseDifficulty) {
+        'beginner' => 'Fácil',
+        'intermediate' => 'Moderado',
+        'advanced' => 'Avanzado',
+        _ => 'General',
+      };
 }

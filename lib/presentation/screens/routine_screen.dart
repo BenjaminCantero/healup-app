@@ -23,6 +23,9 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
   bool _isFinishing = false;
   final DateTime _startTime = DateTime.now();
 
+  /// IDs de los `routine_exercises` marcados como completados en esta sesión.
+  final Set<String> _completedExerciseIds = {};
+
   @override
   Widget build(BuildContext context) {
     final activeInjury = ref.watch(activeInjuryProvider);
@@ -306,10 +309,14 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
         }
 
         final routineExercises = routine.exercises;
+        // Solo contamos como completados los ejercicios que siguen existiendo
+        // en la rutina (evita divisores/estados obsoletos tras un refresh).
+        final validIds = routineExercises.map((e) => e.id).toSet();
+        final completedCount =
+            _completedExerciseIds.where(validIds.contains).length;
         final progress = routineExercises.isEmpty
             ? 0.0
-            : routineExercises.where((ex) => ex.customReps != null).length /
-                  routineExercises.length;
+            : completedCount / routineExercises.length;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,37 +357,78 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             if (routineExercises.isNotEmpty) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: AppTheme.primaryLight,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppTheme.primaryColor,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '$completedCount / ${routineExercises.length} completados',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          '${(progress * 100).toInt()}%',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.primaryColor,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
                     ),
-                    minHeight: 8,
-                  ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        backgroundColor: AppTheme.primaryLight,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppTheme.primaryColor,
+                        ),
+                        minHeight: 8,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
             ],
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                itemCount: routineExercises.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final exercise = routineExercises[index];
-                  return ChecklistItem(
-                    title: exercise.exerciseTitle ?? 'Ejercicio',
-                    subtitle:
-                        '${exercise.customSets ?? 3} series x ${exercise.customReps ?? 12} reps',
-                    isCompleted: false,
-                    onTap: () {},
-                  );
-                },
-              ),
+              child: routineExercises.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Esta rutina aún no tiene ejercicios.',
+                        style: TextStyle(color: AppTheme.textSecondary),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                      itemCount: routineExercises.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final ex = routineExercises[index];
+                        return _RoutineExerciseCard(
+                          exercise: ex,
+                          position: index + 1,
+                          isCompleted: _completedExerciseIds.contains(ex.id),
+                          onToggleComplete: () {
+                            setState(() {
+                              if (!_completedExerciseIds.add(ex.id)) {
+                                _completedExerciseIds.remove(ex.id);
+                              }
+                            });
+                          },
+                        );
+                      },
+                    ),
             ),
+            if (routineExercises.isNotEmpty)
+              _buildFinishBar(context, routine, routineExercises, completedCount),
           ],
         );
       },
@@ -461,5 +509,398 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
     } finally {
       if (mounted) setState(() => _isFinishing = false);
     }
+  }
+
+  Widget _buildFinishBar(
+    BuildContext context,
+    RoutineModel routine,
+    List<RoutineExerciseModel> exercises,
+    int completedCount,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(24.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(32),
+          topRight: Radius.circular(32),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 24,
+            offset: const Offset(0, -8),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: _isFinishing
+            ? const Center(
+                child: CircularProgressIndicator(color: AppTheme.primaryColor),
+              )
+            : GradientButton(
+                text: completedCount == 0
+                    ? 'Marca al menos un ejercicio'
+                    : 'Finalizar Rutina',
+                icon: LucideIcons.flag,
+                onPressed: () => _finishInjuryRoutine(context, routine, exercises),
+              ),
+      ),
+    );
+  }
+
+  Future<void> _finishInjuryRoutine(
+    BuildContext context,
+    RoutineModel routine,
+    List<RoutineExerciseModel> exercises,
+  ) async {
+    final completed = exercises
+        .where((ex) => _completedExerciseIds.contains(ex.id))
+        .map((ex) => {
+              'exerciseId': ex.exerciseId,
+              'setsCompleted': ex.effectiveSets,
+              'repsCompleted': ex.effectiveReps,
+            })
+        .toList();
+
+    if (completed.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Marca al menos un ejercicio como completado.'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isFinishing = true);
+    try {
+      final durationMinutes = DateTime.now().difference(_startTime).inMinutes;
+
+      await ref.read(sessionHistoryProvider.notifier).createSession(
+            routineId: routine.id,
+            durationMinutes: durationMinutes > 0 ? durationMinutes : 1,
+            exercises: completed,
+          );
+
+      ref.read(dashboardStatsProvider.notifier).refresh();
+      ref.read(achievementsProvider.notifier).refresh();
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: const [
+              Icon(LucideIcons.trophy, color: Colors.white),
+              SizedBox(width: 12),
+              Text(
+                '¡Excelente trabajo! Rutina guardada.',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          backgroundColor: AppTheme.primaryColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          margin: const EdgeInsets.all(24),
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al guardar sesión: $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isFinishing = false);
+    }
+  }
+}
+
+/// Tarjeta enriquecida de un ejercicio dentro de la rutina de una lesión.
+/// Muestra imagen, dificultad, series/reps/duración y, al expandir, la
+/// descripción e instrucciones completas provenientes de la base de datos.
+class _RoutineExerciseCard extends StatefulWidget {
+  final RoutineExerciseModel exercise;
+  final int position;
+  final bool isCompleted;
+  final VoidCallback onToggleComplete;
+
+  const _RoutineExerciseCard({
+    required this.exercise,
+    required this.position,
+    required this.isCompleted,
+    required this.onToggleComplete,
+  });
+
+  @override
+  State<_RoutineExerciseCard> createState() => _RoutineExerciseCardState();
+}
+
+class _RoutineExerciseCardState extends State<_RoutineExerciseCard> {
+  bool _expanded = false;
+
+  Color get _difficultyColor => switch (widget.exercise.exerciseDifficulty) {
+        'beginner' => AppTheme.primaryColor,
+        'intermediate' => const Color(0xFFE0A82E),
+        'advanced' => AppTheme.errorColor,
+        _ => AppTheme.textSecondary,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final ex = widget.exercise;
+    final hasDetails =
+        (ex.exerciseDescription != null &&
+                ex.exerciseDescription!.trim().isNotEmpty) ||
+            (ex.exerciseInstructions != null &&
+                ex.exerciseInstructions!.trim().isNotEmpty);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: hasDetails ? () => setState(() => _expanded = !_expanded) : null,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildCheckCircle(),
+                    const SizedBox(width: 12),
+                    _buildThumbnail(ex),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${widget.position}. ${ex.exerciseTitle ?? 'Ejercicio'}',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: widget.isCompleted
+                                  ? AppTheme.textSecondary
+                                  : AppTheme.textPrimary,
+                              decoration: widget.isCompleted
+                                  ? TextDecoration.lineThrough
+                                  : TextDecoration.none,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              _buildChip(
+                                LucideIcons.repeat,
+                                '${ex.effectiveSets} series',
+                              ),
+                              _buildChip(
+                                LucideIcons.dumbbell,
+                                '${ex.effectiveReps} reps',
+                              ),
+                              if (ex.exerciseDurationSeconds != null &&
+                                  ex.exerciseDurationSeconds! > 0)
+                                _buildChip(
+                                  LucideIcons.clock,
+                                  '${ex.exerciseDurationSeconds}s',
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        _buildDifficultyBadge(ex),
+                        if (hasDetails) ...[
+                          const SizedBox(height: 10),
+                          Icon(
+                            _expanded
+                                ? LucideIcons.chevronUp
+                                : LucideIcons.chevronDown,
+                            size: 18,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+                AnimatedCrossFade(
+                  duration: const Duration(milliseconds: 220),
+                  crossFadeState: _expanded
+                      ? CrossFadeState.showSecond
+                      : CrossFadeState.showFirst,
+                  firstChild: const SizedBox(width: double.infinity),
+                  secondChild: _buildDetails(ex),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCheckCircle() {
+    return GestureDetector(
+      onTap: widget.onToggleComplete,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        width: 26,
+        height: 26,
+        decoration: BoxDecoration(
+          color: widget.isCompleted
+              ? AppTheme.primaryColor
+              : Colors.transparent,
+          border: Border.all(
+            color: widget.isCompleted
+                ? AppTheme.primaryColor
+                : AppTheme.textSecondary.withValues(alpha: 0.5),
+            width: 2,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: widget.isCompleted
+            ? const Icon(Icons.check, color: Colors.white, size: 16)
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildThumbnail(RoutineExerciseModel ex) {
+    final url = ex.exerciseImageUrl;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: 56,
+        height: 56,
+        color: AppTheme.primaryLight,
+        child: (url != null && url.isNotEmpty)
+            ? Image.network(
+                url,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(
+                  LucideIcons.activity,
+                  color: AppTheme.primaryColor,
+                ),
+              )
+            : const Icon(LucideIcons.activity, color: AppTheme.primaryColor),
+      ),
+    );
+  }
+
+  Widget _buildChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: AppTheme.textSecondary),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDifficultyBadge(RoutineExerciseModel ex) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: _difficultyColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        ex.difficultyLabel,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: _difficultyColor,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetails(RoutineExerciseModel ex) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+          if (ex.exerciseDescription != null &&
+              ex.exerciseDescription!.trim().isNotEmpty) ...[
+            Text(
+              ex.exerciseDescription!,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (ex.exerciseInstructions != null &&
+              ex.exerciseInstructions!.trim().isNotEmpty) ...[
+            const Text(
+              'Instrucciones',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              ex.exerciseInstructions!,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
