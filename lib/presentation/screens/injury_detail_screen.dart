@@ -6,9 +6,11 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/injury_model.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/bouncing_wrapper.dart';
+import '../widgets/routine_exercise_card.dart';
 import '../providers/routine_provider.dart';
 import '../providers/session_provider.dart';
 import '../providers/gamification_provider.dart';
+import '../providers/injury_provider.dart';
 import '../../data/models/exercise_model.dart';
 import '../../core/network/api_exception.dart';
 
@@ -86,6 +88,7 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
       appBar: AppBar(
         title: Text(injury.title),
         backgroundColor: Colors.transparent,
+        actions: [_buildActionsMenu(injury)],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.only(
@@ -151,6 +154,139 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
       ),
     );
   }
+
+  Widget _buildActionsMenu(InjuryModel injury) {
+    final isHealed = injury.status == 'healed';
+    return PopupMenuButton<String>(
+      icon: const Icon(LucideIcons.moreVertical),
+      onSelected: (value) {
+        switch (value) {
+          case 'recovered':
+            _setStatus(injury, 'healed');
+            break;
+          case 'reactivate':
+            _setStatus(injury, 'active');
+            break;
+          case 'delete':
+            _confirmDelete(injury);
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        if (!isHealed)
+          const PopupMenuItem(
+            value: 'recovered',
+            child: Row(
+              children: [
+                Icon(LucideIcons.checkCircle2,
+                    size: 18, color: AppTheme.primaryColor),
+                SizedBox(width: 12),
+                Text('Marcar como recuperada'),
+              ],
+            ),
+          )
+        else
+          const PopupMenuItem(
+            value: 'reactivate',
+            child: Row(
+              children: [
+                Icon(LucideIcons.rotateCcw,
+                    size: 18, color: AppTheme.primaryColor),
+                SizedBox(width: 12),
+                Text('Reactivar lesión'),
+              ],
+            ),
+          ),
+        const PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(LucideIcons.trash2, size: 18, color: AppTheme.errorColor),
+              SizedBox(width: 12),
+              Text('Eliminar lesión',
+                  style: TextStyle(color: AppTheme.errorColor)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _setStatus(InjuryModel injury, String status) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(injuriesProvider.notifier)
+          .updateInjury(injury.id, {'status': status});
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            status == 'healed'
+                ? '¡Lesión marcada como recuperada!'
+                : 'Lesión reactivada.',
+          ),
+          backgroundColor: AppTheme.primaryColor,
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('No se pudo actualizar la lesión: ${_errorText(e)}'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmDelete(InjuryModel injury) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar lesión'),
+        content: Text(
+          '¿Seguro que quieres eliminar "${injury.title}"? '
+          'Se borrará también su rutina y no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(injuriesProvider.notifier).deleteInjury(injury.id);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Lesión eliminada.')),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('No se pudo eliminar la lesión: ${_errorText(e)}'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
+  String _errorText(Object e) =>
+      e is ApiException ? e.message : e.toString();
 
   Widget _buildInjuryHeader(InjuryModel injury, int days) {
     return CustomCard(
@@ -643,8 +779,8 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
             exercises: completed
                 .map((ex) => <String, dynamic>{
                       'exerciseId': ex.exerciseId,
-                      'setsCompleted': ex.customSets ?? 3,
-                      'repsCompleted': ex.customReps ?? 12,
+                      'setsCompleted': ex.effectiveSets,
+                      'repsCompleted': ex.effectiveReps,
                     })
                 .toList(),
           );
@@ -726,75 +862,24 @@ class _InjuryDetailScreenState extends ConsumerState<InjuryDetailScreen> {
             ],
           ),
           const SizedBox(height: 24),
-          ...routine.exercises.map((ex) {
-            final isCompleted = tempCompletedExercises[ex.id] ?? false;
-            return BouncingWrapper(
-              onTap: () {
-                setState(() {
-                  tempCompletedExercises[ex.id] = !isCompleted;
-                });
-              },
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isCompleted
-                      ? AppTheme.primaryColor.withValues(alpha: 0.05)
-                      : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isCompleted
-                        ? AppTheme.primaryColor.withValues(alpha: 0.3)
-                        : AppTheme.textSecondary.withValues(alpha: 0.1),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: isCompleted 
-                            ? AppTheme.primaryColor 
-                            : AppTheme.backgroundColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        LucideIcons.check,
-                        color: isCompleted ? Colors.white : AppTheme.textSecondary.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            ex.exerciseTitle ?? 'Ejercicio',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary,
-                              decoration: isCompleted ? TextDecoration.lineThrough : null,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${ex.customSets ?? 3} series x ${ex.customReps ?? 12} reps',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+          ...routine.exercises.asMap().entries.map((entry) {
+            final ex = entry.value;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: RoutineExerciseCard(
+                exercise: ex,
+                position: entry.key + 1,
+                isCompleted: tempCompletedExercises[ex.id] ?? false,
+                onToggleComplete: () {
+                  setState(() {
+                    tempCompletedExercises[ex.id] =
+                        !(tempCompletedExercises[ex.id] ?? false);
+                  });
+                },
               ),
             );
-          }).toList(),
-          const SizedBox(height: 24),
+          }),
+          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(

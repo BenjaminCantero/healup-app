@@ -15,11 +15,13 @@ class ProgressScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final progressVal = ref.watch(routineProgressProvider);
     final activeInjury = ref.watch(activeInjuryProvider);
-    final completedCount = ref.watch(routineCompletedCountProvider);
-    final tasksState = ref.watch(dailyTasksProvider);
-    final totalCount = tasksState.value?.length ?? 1;
+    // Progreso alineado con la rutina de rehabilitación (sesiones reales),
+    // no con los hábitos diarios.
+    final weekly = ref.watch(weeklyRoutineProgressProvider);
+    final progressVal = weekly.progress;
+    final completedCount = weekly.completed;
+    final totalCount = weekly.target;
 
     int daysSinceInjury(String dateStr) {
       try {
@@ -99,7 +101,7 @@ class ProgressScreen extends ConsumerWidget {
                     child: RichText(
                       key: ValueKey(progressVal),
                       text: TextSpan(
-                        text: 'Habías superado el ',
+                        text: 'Has completado el ',
                         style: TextStyle(
                           fontSize: 15,
                           color: AppTheme.textSecondary,
@@ -114,9 +116,10 @@ class ProgressScreen extends ConsumerWidget {
                               fontSize: 16,
                             ),
                           ),
-                          const TextSpan(
-                            text:
-                                ' de recuperación total planificada para esta semana.',
+                          TextSpan(
+                            text: totalCount > 0
+                                ? ' de tu rutina planificada para esta semana ($completedCount de $totalCount sesiones).'
+                                : ' de tu rutina. Genera una rutina para tu lesión activa para empezar.',
                           ),
                         ],
                       ),
@@ -331,7 +334,7 @@ class ProgressScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Ejercicios Completados',
+                          'Sesiones de rutina esta semana',
                           style: TextStyle(
                             fontSize: 13,
                             color: AppTheme.textSecondary,
